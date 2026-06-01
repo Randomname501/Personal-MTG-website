@@ -1,0 +1,25 @@
+<main>
+    <title>Leaderboard</title>
+    <h1>Leaderboard</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Username</th>
+                <th>Wins</th>
+                <th>Losses</th>
+                <th>Win/Loss Ratio</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each leaderboard}}
+            <tr>
+                <td>{{rank}}</td>
+                <td>{{username}}</td>
+                <td>{{wins}}</td>
+                <td>{{losses}}</td>
+                <td>{{winLossRatio}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+</main>

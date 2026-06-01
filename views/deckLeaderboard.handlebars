@@ -1,0 +1,27 @@
+<main>
+    <title>Deck Leaderboard</title>
+    <h1>Deck Leaderboard</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Deck Name</th>
+                <th>Owner</th>
+                <th>Wins</th>
+                <th>Losses</th>
+                <th>Win/Loss Ratio</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each leaderboard}}
+            <tr>
+                <td>{{rank}}</td>
+                <td>{{deckName}}</td>
+                <td>{{owner}}</td>
+                <td>{{wins}}</td>
+                <td>{{losses}}</td>
+                <td>{{winLossRatio}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+</main>

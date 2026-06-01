@@ -1,0 +1,46 @@
+<main class="login-container">
+  {{#if hasError}}
+    <div class="error-message">{{loginError}}</div>
+  {{/if}}
+  <h1>Login</h1>
+  <form id="login_form" action="/login" method="post">
+    <div class="form-group">
+      <label for="username_input">Username</label>
+      <input
+        type="text"
+        name="username_input"
+        id="username_input"
+        required
+        minlength="3"
+        maxlength="50"
+        class="form-input"
+        style="width: 100%"
+      />
+    </div>
+    <div class="form-group">
+      <label for="password_input">Password</label>
+      <div class="password-container">
+        <input
+          type="password"
+          name="password_input"
+          id="password_input"
+          required
+          minlength="8"
+          maxlength="50"
+          class="form-input"
+          style="width: 100%"
+        />
+        <button
+          type="button"
+          class="password-toggle"
+          aria-label="Toggle password visibility"
+        >
+          <i class="far fa-eye"></i>
+        </button>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="submit-button">Log In</button>
+    </div>
+  </form>
+</main>

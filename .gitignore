@@ -1,0 +1,13 @@
+/dbpassword.txt
+/package-lock.json
+/node_modules
+/.env
+/.vscode
+/dist
+/coverage
+/.idea
+.DS_Store
+/logs
+/.superpowers
+/tsconfig.tsbuildinfo
+/tsconfig.json
