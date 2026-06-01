@@ -1,0 +1,48 @@
+<main>
+  <div class="welcome-message">Welcome, {{user.username}}</div>
+
+<h2>My Decks</h2>
+  <section class="active-decks">
+    {{#each decks}}
+      <div class="deck-card">
+        <h3>{{this.name}}</h3>
+        <p>Format: {{this.format}}</p>
+        <p>Created on: {{this.createdAt}}</p>
+        <a href="/decks/{{this._id}}" class="view-deck-button">View Deck</a>
+      </div>
+    {{/each}}
+<h2>Tracked Decks</h2>
+    {{#each trackedDecks}}
+      <div class="deck-card">
+        <h3>{{this.name}}</h3>
+        <p>Format: {{this.format}}</p>
+        <p>Created on: {{this.createdAt}}</p>
+        <a href="/decks/{{this._id}}" class="view-deck-button">View Deck</a>
+      </div>
+    {{/each}}
+<h2>Enter Game Records</h2>
+    <form action="/game-records" method="POST" class="game-record-form">
+      <div class="form-group">
+        <label for="deck_id">Deck:</label>
+        <select name="deck_id" id="deck_id" required>
+          {{#each decks}}
+            <option value="{{this._id}}">{{this.name}}</option>
+          {{/each}}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="opponent_deck">Opponent's Deck:</label>
+        <input type="text" name="opponent_deck" id="opponent_deck" required>
+      </div>
+      <div class="form-group">
+        <label for="result">Result:</label>
+        <select name="result" id="result" required>
+          <option value="win">Win</option>
+          <option value="loss">Loss</option>
+          <option value="draw">Draw</option>
+        </select>
+      </div>
+      <button type="submit" class="submit-button">Submit Game Record</button>
+    </form>
+  </section>
+</main>
