@@ -1,4 +1,111 @@
-<main>
-  <h1>Welcome to Our Website</h1>
-  <p>This is the home page. Explore our content and enjoy your stay!</p>
+<main class="landing">
+
+  <section class="hero" aria-labelledby="hero-heading">
+    <div class="hero__copy">
+      <p class="eyebrow">The planeswalker's logbook</p>
+      <h1 id="hero-heading" class="hero__title">
+        Track every game.<br>
+        <span class="hero__title-accent">Master every deck.</span>
+      </h1>
+      <p class="hero__lead">
+        Keep a running record of your Magic matches &mdash; which deck you tapped out,
+        who you sat across from, and how it ended. Watch your win rates climb the
+        leaderboards, one game at a time.
+      </p>
+      <div class="hero__actions">
+        <a href="/login" class="btn btn--primary">Log In</a>
+        <a href="/leaderboard" class="btn btn--ghost">View Leaderboard &rarr;</a>
+      </div>
+    </div>
+
+    <div class="hero__rack" aria-hidden="true">
+      <div class="rack">
+        <span class="pip pip--w" data-mana="W"></span>
+        <span class="pip pip--u" data-mana="U"></span>
+        <span class="pip pip--b" data-mana="B"></span>
+        <span class="pip pip--r" data-mana="R"></span>
+        <span class="pip pip--g" data-mana="G"></span>
+      </div>
+      <p class="rack__caption">Five colors. One record of truth.</p>
+    </div>
+  </section>
+
+  <div class="mana-bar" role="presentation"></div>
+
+  <section class="features" aria-labelledby="features-heading">
+    <h2 id="features-heading" class="section-heading">Everything at the table, written down</h2>
+    <div class="feature-grid">
+
+      <article class="feature feature--u">
+        <span class="feature__pip"></span>
+        <h3 class="feature__title">Build your decks</h3>
+        <p class="feature__body">
+          Register every brew you sleeve up &mdash; commander, modern, draft pile and all.
+          Each deck keeps its own format and history.
+        </p>
+      </article>
+
+      <article class="feature feature--r">
+        <span class="feature__pip"></span>
+        <h3 class="feature__title">Log your games</h3>
+        <p class="feature__body">
+          After the last card resolves, jot the result. Deck played, opponent faced,
+          win, loss or draw &mdash; ten seconds, done.
+        </p>
+      </article>
+
+      <article class="feature feature--g">
+        <span class="feature__pip"></span>
+        <h3 class="feature__title">Climb the leaderboards</h3>
+        <p class="feature__body">
+          Your records feed the standings. See who's winning, which decks dominate
+          the meta, and where you rank.
+        </p>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="how" aria-labelledby="how-heading">
+    <h2 id="how-heading" class="section-heading">How a match gets recorded</h2>
+    <ol class="steps">
+      <li class="step">
+        <span class="step__num">01</span>
+        <h3 class="step__title">Pick your deck</h3>
+        <p class="step__body">Choose the deck you played from your registered list.</p>
+      </li>
+      <li class="step">
+        <span class="step__num">02</span>
+        <h3 class="step__title">Name the opponent &amp; result</h3>
+        <p class="step__body">Type who you faced and mark it a win, loss or draw.</p>
+      </li>
+      <li class="step">
+        <span class="step__num">03</span>
+        <h3 class="step__title">Standings update</h3>
+        <p class="step__body">Your win rate and the leaderboards adjust on the spot.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="cta" aria-labelledby="cta-heading">
+    <h2 id="cta-heading" class="cta__title">Ready to keep score?</h2>
+    <p class="cta__lead">Stop trusting memory. Start trusting the ledger.</p>
+    <a href="/login" class="btn btn--primary btn--lg">Log In to Start Tracking</a>
+  </section>
+
 </main>
+
+<footer class="site-footer">
+  <div class="mana-bar mana-bar--footer" role="presentation"></div>
+  <div class="site-footer__inner">
+    <span class="site-footer__mark">MTG Tracker</span>
+    <nav class="site-footer__nav" aria-label="Footer">
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/deckLeaderboard">Deck Leaderboard</a>
+      <a href="/login">Log In</a>
+    </nav>
+    <span class="site-footer__fine">
+      Unofficial fan tool. Not affiliated with or endorsed by Wizards of the Coast.
+    </span>
+  </div>
+</footer>
