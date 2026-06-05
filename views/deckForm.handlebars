@@ -1,0 +1,52 @@
+<main class="deck-form-container">
+  {{#if hasError}}
+    <div class="error-message">{{deckError}}</div>
+  {{/if}}
+  <h1>New Deck</h1>
+  <form action="/decks" method="post" class="deck-form">
+    <div class="form-group">
+      <label for="name">Deck Name</label>
+      <input type="text" name="name" id="name" required class="form-input" value="{{values.name}}" />
+    </div>
+
+    <div class="form-group">
+      <label for="format">Format</label>
+      <select name="format" id="format" required>
+        {{#each formats}}
+          <option value="{{this}}">{{this}}</option>
+        {{/each}}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <span>Color Identity</span>
+      <div class="color-checkboxes">
+        {{#each colorOptions}}
+          <label class="color-checkbox">
+            <input type="checkbox" name="colors" value="{{this}}" /> {{this}}
+          </label>
+        {{/each}}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="commander">Commander (optional)</label>
+      <input type="text" name="commander" id="commander" class="form-input" value="{{values.commander}}" />
+    </div>
+
+    <div class="form-group">
+      <label for="archetype">Archetype (optional)</label>
+      <input type="text" name="archetype" id="archetype" class="form-input" value="{{values.archetype}}" />
+    </div>
+
+    <div class="form-group">
+      <label for="description">Notes (optional)</label>
+      <textarea name="description" id="description" class="form-input">{{values.description}}</textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="submit-button">Create Deck</button>
+      <a href="/dashboard" class="button cancel-button">Cancel</a>
+    </div>
+  </form>
+</main>

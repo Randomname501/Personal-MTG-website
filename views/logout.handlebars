@@ -2,9 +2,9 @@
     <h1>Sign Out</h1>
     <p>Are you sure you want to sign out?</p>
     <div class="signout-buttons">
-    <a href="/logout" class="button signout-button">Yes, Sign Out</a>
-    <a href="/" class="button cancel-button">Cancel</a>
-  </div>
-  <h1>Goodbye!</h1>
-  <p>You have been successfully signed out. We hope to see you again soon!</p>
+      <form action="/logout" method="POST" style="display:inline">
+        <button type="submit" class="button signout-button">Yes, Sign Out</button>
+      </form>
+      <a href="/" class="button cancel-button">Cancel</a>
+    </div>
  </main>

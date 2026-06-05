@@ -2,14 +2,16 @@
   <div class="welcome-message">Welcome, {{user.username}}</div>
 
 <h2>My Decks</h2>
+  <p><a href="/decks/new" class="button">+ New Deck</a></p>
   <section class="active-decks">
     {{#each decks}}
       <div class="deck-card">
         <h3>{{this.name}}</h3>
         <p>Format: {{this.format}}</p>
         <p>Created on: {{this.createdAt}}</p>
-        <a href="/decks/{{this._id}}" class="view-deck-button">View Deck</a>
       </div>
+    {{else}}
+      <p>You haven't added any decks yet.</p>
     {{/each}}
 <h2>Tracked Decks</h2>
     {{#each trackedDecks}}
@@ -17,10 +19,12 @@
         <h3>{{this.name}}</h3>
         <p>Format: {{this.format}}</p>
         <p>Created on: {{this.createdAt}}</p>
-        <a href="/decks/{{this._id}}" class="view-deck-button">View Deck</a>
       </div>
+    {{else}}
+      <p>You aren't tracking any decks yet.</p>
     {{/each}}
 <h2>Enter Game Records</h2>
+    {{#if decks.length}}
     <form action="/game-records" method="POST" class="game-record-form">
       <div class="form-group">
         <label for="deck_id">Deck:</label>
@@ -44,5 +48,8 @@
       </div>
       <button type="submit" class="submit-button">Submit Game Record</button>
     </form>
+    {{else}}
+      <p>Add a deck above before logging a game.</p>
+    {{/if}}
   </section>
 </main>

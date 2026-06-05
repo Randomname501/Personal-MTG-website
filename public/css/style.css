@@ -576,6 +576,171 @@ main:not(.landing) h2 {
 .submit-button:hover { transform: translateY(-2px); background: #322b3c; }
 
 /* ============================================================
+   AUTH CARDS  (login + register)
+   ============================================================ */
+.login-container {
+  max-width: 26rem;
+  margin: clamp(2rem, 6vw, 4rem) auto;
+  padding: clamp(1.8rem, 4vw, 2.6rem);
+  background:
+    radial-gradient(120% 130% at 50% 0%, rgba(31,92,153,0.08), transparent 55%),
+    var(--paper-deep);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+}
+/* gold corner ticks, echoing the hero rack's card frame */
+.login-container::before,
+.login-container::after {
+  content: "";
+  position: absolute;
+  width: 14px; height: 14px;
+  border: 2px solid var(--gold);
+  opacity: 0.55;
+}
+.login-container::before { top: 9px; left: 9px; border-right: none; border-bottom: none; }
+.login-container::after  { bottom: 9px; right: 9px; border-left: none; border-top: none; }
+
+.login-container h1 {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.7rem;
+  text-align: center;
+  margin: 0 0 1.6rem;
+}
+.login-container .form-actions { margin-top: 1.5rem; }
+.login-container .submit-button { width: 100%; }
+.login-container > p {
+  margin-top: 1.3rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+.login-container > p a { color: var(--mana-u); font-weight: 600; }
+.login-container > p a:hover { text-decoration: underline; }
+
+/* Inline error banner (auth + deck form) */
+.error-message {
+  background: rgba(192,58,34,0.10);
+  border: 1px solid rgba(192,58,34,0.40);
+  border-left: 4px solid var(--mana-r);
+  color: #7a2415;
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 1.2rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* Password field with the show/hide toggle */
+.password-container { position: relative; }
+.password-container input { padding-right: 2.6rem; }
+.password-toggle {
+  position: absolute;
+  top: 50%; right: 0.45rem;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 2rem; height: 2rem;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+.password-toggle:hover { color: var(--mana-u); }
+
+/* ============================================================
+   DECK FORM
+   ============================================================ */
+.deck-form-container { max-width: 36rem; }
+.deck-form {
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: clamp(1.4rem, 3vw, 2rem);
+  box-shadow: var(--shadow-card);
+}
+/* textarea matches the input/select styling (which only targets input,select) */
+.deck-form textarea {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.6rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  resize: vertical;
+}
+.deck-form textarea:focus {
+  outline: none;
+  border-color: var(--mana-u);
+  box-shadow: 0 0 0 3px rgba(31,92,153,0.18);
+}
+/* the "Color Identity" caption sits as a <span>, style it like a label */
+.deck-form .form-group > span {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  color: var(--ink-soft);
+}
+.color-checkboxes { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+/* scoped to beat the broad `.form-group label` rule */
+.color-checkboxes .color-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  margin: 0;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.color-checkboxes .color-checkbox input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--mana-u);
+}
+
+/* ============================================================
+   GENERIC BUTTONS  ("+ New Deck", logout confirm, cancel)
+   ============================================================ */
+.button {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  font-family: 'Archivo', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+.button:hover { transform: translateY(-2px); background: #322b3c; }
+.cancel-button { background: transparent; color: var(--ink); }
+.cancel-button:hover { background: var(--ink); color: var(--paper); }
+.signout-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 1.2rem;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 860px) {
