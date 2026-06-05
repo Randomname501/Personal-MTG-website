@@ -1,8 +1,10 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import { engine } from 'express-handlebars';
 import { router } from './routes/index.js';
+import { connectMongo } from './config/db.js';
 
 const app = express();
 
@@ -40,6 +42,15 @@ app.use(rewriteUnsupportedBrowserMethods);
 app.use(cors());
 app.use(router);
 
-app.listen(3000, () => {
-  console.log(`Server running at http://localhost:3000`);
-});
+// Connect to MongoDB before accepting requests so the app fails fast if the
+// database is unreachable.
+connectMongo()
+  .then(() => {
+    app.listen(3000, () => {
+      console.log(`Server running at http://localhost:3000`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to connect to MongoDB:', err.message);
+    process.exit(1);
+  });
