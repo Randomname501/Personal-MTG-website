@@ -5,7 +5,7 @@ import { before, after, beforeEach } from 'node:test';
 import mongoose from 'mongoose';
 import { connectMongo } from '../config/db.js';
 import { User, Deck, GameRecord } from '../models/index.js';
-import { getDeckStats, getUserSummary } from '../lib/stats.js';
+import { getDeckStats } from '../lib/stats.js';
 
 before(async () => {
   // Dedicated DB so this suite never collides with the other test files.
