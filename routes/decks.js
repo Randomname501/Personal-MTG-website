@@ -1,6 +1,8 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, MTG_COLORS } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { getDeckStats } from '../lib/stats.js';
 
 const router = express.Router();
 
@@ -41,6 +43,22 @@ router.post('/decks', requireAuth, async (req, res, next) => {
         values: req.body,
       });
     }
+    next(err);
+  }
+});
+
+router.get('/decks/:id', requireAuth, async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).render('404', { title: 'Not Found' });
+    }
+    const deck = await Deck.findById(req.params.id).lean();
+    if (!deck) {
+      return res.status(404).render('404', { title: 'Not Found' });
+    }
+    const stats = await getDeckStats(deck._id);
+    res.render('deckDetail', { title: deck.name, deck, stats });
+  } catch (err) {
     next(err);
   }
 });

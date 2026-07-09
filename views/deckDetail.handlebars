@@ -1,0 +1,67 @@
+<main>
+  <p><a href="/dashboard">&larr; Back to dashboard</a></p>
+  <h1>{{deck.name}}</h1>
+  <p class="deck-meta">
+    {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}
+  </p>
+
+  <section class="deck-stats">
+    <h2>Record</h2>
+    {{#if stats.total}}
+      <p class="big-winrate">{{stats.winRate}}% win rate <span>({{stats.wins}}&ndash;{{stats.losses}}&ndash;{{stats.draws}})</span></p>
+      <div class="bar-row">
+        <span class="bar-label">Wins</span>
+        <span class="bar"><span class="bar__fill bar__fill--win" style="width: {{percent stats.wins stats.total}}%"></span></span>
+        <span class="bar-val">{{stats.wins}}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Losses</span>
+        <span class="bar"><span class="bar__fill bar__fill--loss" style="width: {{percent stats.losses stats.total}}%"></span></span>
+        <span class="bar-val">{{stats.losses}}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Draws</span>
+        <span class="bar"><span class="bar__fill bar__fill--draw" style="width: {{percent stats.draws stats.total}}%"></span></span>
+        <span class="bar-val">{{stats.draws}}</span>
+      </div>
+    {{else}}
+      <p>No games logged for this deck yet.</p>
+    {{/if}}
+  </section>
+
+  {{#if stats.matchups.length}}
+    <section class="deck-stats">
+      <h2>Matchups</h2>
+      <table class="matchup-table">
+        <thead>
+          <tr><th>Opponent</th><th>W&ndash;L&ndash;D</th><th>Win rate</th></tr>
+        </thead>
+        <tbody>
+          {{#each stats.matchups}}
+            <tr>
+              <td>{{this.opponent}}</td>
+              <td>{{this.wins}}&ndash;{{this.losses}}&ndash;{{this.draws}}</td>
+              <td>
+                <span class="bar bar--inline"><span class="bar__fill bar__fill--win" style="width: {{this.winRate}}%"></span></span>
+                {{this.winRate}}%
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </section>
+  {{/if}}
+
+  {{#if stats.trend.length}}
+    <section class="deck-stats">
+      <h2>Weekly win rate</h2>
+      {{#each stats.trend}}
+        <div class="bar-row">
+          <span class="bar-label">{{this.week}}</span>
+          <span class="bar"><span class="bar__fill bar__fill--win" style="width: {{this.winRate}}%"></span></span>
+          <span class="bar-val">{{this.winRate}}% ({{this.games}})</span>
+        </div>
+      {{/each}}
+    </section>
+  {{/if}}
+</main>

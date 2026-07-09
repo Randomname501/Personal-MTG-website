@@ -24,7 +24,16 @@ const rewriteUnsupportedBrowserMethods = (req, res, next) => {
 };
 
 // View engine: Handlebars
-app.engine('handlebars', engine({ defaultLayout: 'main' }));
+app.engine(
+  'handlebars',
+  engine({
+    defaultLayout: 'main',
+    helpers: {
+      // Integer percentage of part within whole; 0 when whole is 0 (used for bar widths).
+      percent: (part, whole) => (whole ? Math.round((Number(part) / Number(whole)) * 100) : 0),
+    },
+  })
+);
 app.set('view engine', 'handlebars');
 app.set('views', './views');
 

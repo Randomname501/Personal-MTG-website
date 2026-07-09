@@ -63,4 +63,23 @@ test('dashboard shows the overall stats summary', async () => {
   assert.match(res.text, /67%/); // 2 wins of 3 games
 });
 
+test('deck detail page shows record, matchups, and header', async () => {
+  const deck = await Deck.findOne({ name: 'Azorius Control' });
+  const res = await request('GET', `/decks/${deck._id}`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Azorius Control/);
+  assert.match(res.text, /67% win rate/);
+  assert.match(res.text, /Burn/); // a matchup row
+});
+
+test('deck detail 404s for a missing deck', async () => {
+  const res = await request('GET', '/decks/64b000000000000000000000');
+  assert.equal(res.status, 404);
+});
+
+test('deck detail 404s for a malformed id', async () => {
+  const res = await request('GET', '/decks/not-an-id');
+  assert.equal(res.status, 404);
+});
+
 export { request }; // reused by later tests appended in Task 5
