@@ -2,7 +2,7 @@
   <p><a href="/dashboard">&larr; Back to dashboard</a></p>
   <h1>{{deck.name}}</h1>
   <p class="deck-meta">
-    {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}
+    {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}{{#if deck.colors.length}} &middot; {{#each deck.colors}}{{this}} {{/each}}{{/if}}
   </p>
 
   <section class="deck-stats">

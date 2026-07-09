@@ -69,6 +69,20 @@ test('getDeckStats groups matchups case/space-insensitively, sorted by games', a
   assert.equal(stats.matchups[1].winRate, 100);
 });
 
+test('getDeckStats picks the most-frequent spelling for an uneven matchup split', async () => {
+  const { user, deck } = await makeUserAndDeck();
+  // Minority spelling seeded FIRST, so a "first-seen" regression would pick
+  // 'Aggro' here instead of the more frequent 'aggro'.
+  await seedGame(deck, user, 'Aggro', 'loss');
+  await seedGame(deck, user, 'aggro', 'win');
+  await seedGame(deck, user, 'aggro', 'win'); // same normalized opponent, majority spelling
+
+  const stats = await getDeckStats(deck._id);
+  assert.equal(stats.matchups.length, 1);
+  assert.equal(stats.matchups[0].opponent, 'aggro'); // more frequent spelling (2 vs 1)
+  assert.equal(stats.matchups[0].total, 3);
+});
+
 test('getDeckStats buckets a weekly win-rate trend in chronological order', async () => {
   const { user, deck } = await makeUserAndDeck();
   await seedGame(deck, user, 'X', 'win', new Date('2026-07-06T12:00:00Z')); // week 28
@@ -106,6 +120,29 @@ test('getUserSummary totals all decks and picks the best qualifying deck', async
   assert.equal(summary.bestDeck.name, 'Deck A');
   assert.equal(summary.bestDeck.winRate, 67);
   assert.equal(summary.bestDeck.total, 3);
+});
+
+test('getUserSummary breaks a winRate tie by higher total games', async () => {
+  const user = await User.create({ username: `tie${Date.now()}`, passwordHash: 'x' });
+  const deckA = await Deck.create({ name: 'Deck A', format: 'Modern', owner: user._id });
+  const deckB = await Deck.create({ name: 'Deck B', format: 'Modern', owner: user._id });
+
+  // Both decks are 2-1 (67% win rate), but Deck B has played more games.
+  await seedGame(deckA, user, 'X', 'win');
+  await seedGame(deckA, user, 'X', 'win');
+  await seedGame(deckA, user, 'X', 'loss'); // Deck A: 3 games, 67%
+
+  await seedGame(deckB, user, 'X', 'win');
+  await seedGame(deckB, user, 'X', 'win');
+  await seedGame(deckB, user, 'X', 'win');
+  await seedGame(deckB, user, 'X', 'win');
+  await seedGame(deckB, user, 'X', 'loss');
+  await seedGame(deckB, user, 'X', 'loss'); // Deck B: 6 games, 67%
+
+  const summary = await getUserSummary(user._id);
+  assert.equal(summary.bestDeck.name, 'Deck B');
+  assert.equal(summary.bestDeck.winRate, 67);
+  assert.equal(summary.bestDeck.total, 6);
 });
 
 test('getUserSummary returns zeros and null bestDeck when there are no games', async () => {

@@ -22,7 +22,18 @@ const request = async (method, path, form) => {
   let body;
   if (form) {
     headers['content-type'] = 'application/x-www-form-urlencoded';
-    body = new URLSearchParams(form).toString();
+    // Build params manually: URLSearchParams(form) would stringify an array
+    // value as a single comma-joined string instead of repeated keys, which
+    // doesn't match how a real <select multiple>/checkbox group posts.
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(form)) {
+      if (Array.isArray(value)) {
+        for (const v of value) params.append(key, v);
+      } else {
+        params.append(key, value);
+      }
+    }
+    body = params.toString();
   }
   const res = await fetch(baseUrl + path, { method, headers, body, redirect: 'manual' });
   storeCookies(res);
@@ -70,6 +81,7 @@ test('deck detail page shows record, matchups, and header', async () => {
   assert.match(res.text, /Azorius Control/);
   assert.match(res.text, /67% win rate/);
   assert.match(res.text, /Burn/); // a matchup row
+  assert.match(res.text, /Modern.*&middot;\s*W\s*U/s); // header includes color identity
 });
 
 test('deck detail 404s for a missing deck', async () => {
@@ -81,5 +93,3 @@ test('deck detail 404s for a malformed id', async () => {
   const res = await request('GET', '/decks/not-an-id');
   assert.equal(res.status, 404);
 });
-
-export { request }; // reused by later tests appended in Task 5
