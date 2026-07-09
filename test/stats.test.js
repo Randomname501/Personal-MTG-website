@@ -5,7 +5,7 @@ import { before, after, beforeEach } from 'node:test';
 import mongoose from 'mongoose';
 import { connectMongo } from '../config/db.js';
 import { User, Deck, GameRecord } from '../models/index.js';
-import { getDeckStats } from '../lib/stats.js';
+import { getDeckStats, getUserSummary } from '../lib/stats.js';
 
 before(async () => {
   // Dedicated DB so this suite never collides with the other test files.
@@ -86,6 +86,44 @@ test('getDeckStats handles a deck with no games', async () => {
   const { deck } = await makeUserAndDeck();
   const stats = await getDeckStats(deck._id);
   assert.deepEqual(stats, { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0, matchups: [], trend: [] });
+});
+
+test('getUserSummary totals all decks and picks the best qualifying deck', async () => {
+  const user = await User.create({ username: `sum${Date.now()}`, passwordHash: 'x' });
+  const deckA = await Deck.create({ name: 'Deck A', format: 'Modern', owner: user._id });
+  const deckB = await Deck.create({ name: 'Deck B', format: 'Modern', owner: user._id });
+
+  await seedGame(deckA, user, 'X', 'win');
+  await seedGame(deckA, user, 'X', 'win');
+  await seedGame(deckA, user, 'X', 'loss'); // Deck A: 2-1, 3 games -> qualifies (67%)
+  await seedGame(deckB, user, 'X', 'win'); // Deck B: 1-0 but only 1 game -> ineligible
+
+  const summary = await getUserSummary(user._id);
+  assert.equal(summary.totalGames, 4);
+  assert.equal(summary.wins, 3);
+  assert.equal(summary.losses, 1);
+  assert.equal(summary.winRate, 75);
+  assert.equal(summary.bestDeck.name, 'Deck A');
+  assert.equal(summary.bestDeck.winRate, 67);
+  assert.equal(summary.bestDeck.total, 3);
+});
+
+test('getUserSummary returns zeros and null bestDeck when there are no games', async () => {
+  const user = await User.create({ username: `empty${Date.now()}`, passwordHash: 'x' });
+  await Deck.create({ name: 'Idle', format: 'Modern', owner: user._id });
+
+  const summary = await getUserSummary(user._id);
+  assert.deepEqual(summary, { totalGames: 0, wins: 0, losses: 0, draws: 0, winRate: 0, bestDeck: null });
+});
+
+test('getUserSummary leaves bestDeck null when no deck reaches 3 games', async () => {
+  const user = await User.create({ username: `fewgames${Date.now()}`, passwordHash: 'x' });
+  const deck = await Deck.create({ name: 'Fresh', format: 'Modern', owner: user._id });
+  await seedGame(deck, user, 'X', 'win');
+  await seedGame(deck, user, 'X', 'win'); // 2 games only
+
+  const summary = await getUserSummary(user._id);
+  assert.equal(summary.bestDeck, null);
 });
 
 test('winRatePercent rounds wins over total games', () => {
