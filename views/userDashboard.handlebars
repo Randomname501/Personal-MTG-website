@@ -1,14 +1,29 @@
 <main>
   <div class="welcome-message">Welcome, {{user.username}}</div>
 
+  {{#if summary.totalGames}}
+    <section class="stats-summary">
+      <h2>Your Stats</h2>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat__num">{{summary.winRate}}%</span><span class="stat__label">Win Rate</span></div>
+        <div class="stat"><span class="stat__num">{{summary.wins}}&ndash;{{summary.losses}}&ndash;{{summary.draws}}</span><span class="stat__label">W&ndash;L&ndash;D</span></div>
+        <div class="stat"><span class="stat__num">{{summary.totalGames}}</span><span class="stat__label">Games</span></div>
+        {{#if summary.bestDeck}}
+          <div class="stat"><span class="stat__num">{{summary.bestDeck.name}}</span><span class="stat__label">Best Deck ({{summary.bestDeck.winRate}}%)</span></div>
+        {{/if}}
+      </div>
+    </section>
+  {{/if}}
+
 <h2>My Decks</h2>
   <p><a href="/decks/new" class="button">+ New Deck</a></p>
   <section class="active-decks">
     {{#each decks}}
       <div class="deck-card">
-        <h3>{{this.name}}</h3>
+        <h3><a href="/decks/{{this._id}}">{{this.name}}</a></h3>
         <p>Format: {{this.format}}</p>
         <p>Created on: {{this.createdAt}}</p>
+        <a href="/decks/{{this._id}}" class="view-deck-button">View stats</a>
       </div>
     {{else}}
       <p>You haven't added any decks yet.</p>

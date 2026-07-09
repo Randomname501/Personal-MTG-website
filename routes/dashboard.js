@@ -1,6 +1,7 @@
 import express from 'express';
 import { Deck, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { getUserSummary } from '../lib/stats.js';
 
 const router = express.Router();
 
@@ -8,9 +9,10 @@ router.get('/dashboard', requireAuth, async (req, res, next) => {
   try {
     // .lean() so Handlebars can read the fields (its prototype guard blocks
     // Mongoose document getters, rendering them blank otherwise).
-    const [decks, userWithTracked] = await Promise.all([
+    const [decks, userWithTracked, summary] = await Promise.all([
       Deck.find({ owner: req.currentUser._id }).sort({ createdAt: -1 }).lean(),
       User.findById(req.currentUser._id).populate('trackedDecks').lean(),
+      getUserSummary(req.currentUser._id),
     ]);
 
     res.render('userDashboard', {
@@ -18,6 +20,7 @@ router.get('/dashboard', requireAuth, async (req, res, next) => {
       user: req.currentUser,
       decks,
       trackedDecks: userWithTracked?.trackedDecks ?? [],
+      summary,
     });
   } catch (err) {
     next(err);
