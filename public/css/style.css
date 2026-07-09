@@ -764,3 +764,87 @@ main:not(.landing) h2 {
   .feature:hover { transform: translateY(-4px); }
   .btn:hover { transform: none; }
 }
+
+/* ============================================================
+   DECK STATS & ANALYTICS
+   ============================================================ */
+.stats-summary { margin-bottom: 1.5rem; }
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1rem;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.2rem;
+  background: #fbf8ef;
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--mana-g);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+}
+.stat__num { font-family: 'Cinzel', serif; font-size: 1.35rem; font-weight: 700; }
+.stat__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.deck-meta { color: var(--ink-soft); margin-bottom: 1.5rem; }
+
+.deck-stats {
+  background: #fbf8ef;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.3rem 1.5rem;
+  margin-bottom: 1.4rem;
+  box-shadow: var(--shadow-card);
+}
+.big-winrate { font-family: 'Cinzel', serif; font-size: 1.5rem; margin-bottom: 1rem; }
+.big-winrate span { color: var(--ink-soft); font-size: 1rem; }
+
+/* Horizontal stat bars: a track with a server-sized fill. */
+.bar-row {
+  display: grid;
+  grid-template-columns: 5rem 1fr auto;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+.bar-label { font-size: 0.85rem; color: var(--ink-soft); }
+.bar {
+  position: relative;
+  height: 0.85rem;
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar--inline { display: inline-block; width: 4rem; vertical-align: middle; }
+.bar__fill { display: block; height: 100%; border-radius: 999px; }
+.bar__fill--win { background: var(--mana-g); }
+.bar__fill--loss { background: var(--mana-r); }
+.bar__fill--draw { background: var(--gold); }
+.bar-val { font-size: 0.85rem; font-weight: 600; }
+
+.matchup-table { width: 100%; border-collapse: collapse; }
+.matchup-table th,
+.matchup-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.9rem;
+}
+.matchup-table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* The deck-card title link should read as a heading, not a plain link. */
+.deck-card h3 a { color: inherit; }
+.deck-card h3 a:hover { color: var(--mana-u); }
