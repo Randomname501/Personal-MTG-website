@@ -130,4 +130,32 @@ router.put('/game-records/:id', requireAuth, async (req, res, next) => {
   }
 });
 
+router.get('/game-records/:id/delete', requireAuth, async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).render('404', { title: 'Not Found' });
+    }
+    const record = await GameRecord.findOne({ _id: req.params.id, user: req.currentUser._id })
+      .populate('deck', 'name')
+      .lean();
+    if (!record) return res.status(404).render('404', { title: 'Not Found' });
+
+    res.render('gameRecordDelete', { title: 'Delete Game', record });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/game-records/:id', requireAuth, async (req, res, next) => {
+  try {
+    const record = await findOwnedRecord(req.params.id, req.currentUser._id);
+    if (!record) return res.status(404).render('404', { title: 'Not Found' });
+
+    await record.deleteOne();
+    res.redirect('/game-records');
+  } catch (err) {
+    next(err);
+  }
+});
+
 export { router as gameRecordsRouter };

@@ -172,4 +172,35 @@ test('a user cannot view or edit another user\'s record', async () => {
   assert.equal(unchanged.opponentDeck, 'AlicesGame');
 });
 
+test('delete confirmation renders and DELETE removes the record', async () => {
+  const aggro = await Deck.findOne({ name: 'Aggro' });
+  const rec = await logGame(alice, aggro._id, 'DeleteMe', 'loss');
+
+  const confirm = await alice.request('GET', `/game-records/${rec._id}/delete`);
+  assert.equal(confirm.status, 200);
+  assert.match(confirm.text, /Delete Game/);
+  assert.match(confirm.text, /DeleteMe/);
+
+  const del = await alice.request('DELETE', `/game-records/${rec._id}`);
+  assert.equal(del.status, 302);
+  assert.equal(del.location, '/game-records');
+
+  const gone = await GameRecord.findById(rec._id).lean();
+  assert.equal(gone, null);
+});
+
+test('a user cannot delete another user\'s record', async () => {
+  const aggro = await Deck.findOne({ name: 'Aggro' });
+  const rec = await logGame(alice, aggro._id, 'DontDeleteMe', 'win');
+
+  const carol = makeClient();
+  await carol.request('POST', '/register', { username_input: 'Carol', password_input: 'hunter2hunter' });
+
+  const del = await carol.request('DELETE', `/game-records/${rec._id}`);
+  assert.equal(del.status, 404);
+
+  const stillThere = await GameRecord.findById(rec._id).lean();
+  assert.notEqual(stillThere, null);
+});
+
 export { makeClient, logGame };
