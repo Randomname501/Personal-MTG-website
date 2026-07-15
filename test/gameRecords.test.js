@@ -111,4 +111,65 @@ test('filter by result shows only matching games; invalid result is ignored', as
   assert.match(bogus.text, /Goblins/); // unfiltered
 });
 
+test('edit page pre-fills and PUT updates the record', async () => {
+  const aggro = await Deck.findOne({ name: 'Aggro' });
+  const rec = await logGame(alice, aggro._id, 'EditMe', 'win');
+
+  const form = await alice.request('GET', `/game-records/${rec._id}/edit`);
+  assert.equal(form.status, 200);
+  assert.match(form.text, /Edit Game/);
+  assert.match(form.text, /EditMe/); // opponent pre-filled
+
+  const control = await Deck.findOne({ name: 'Control' });
+  const put = await alice.request('PUT', `/game-records/${rec._id}`, {
+    deck_id: control._id.toString(),
+    opponent_deck: 'Storm',
+    result: 'draw',
+  });
+  assert.equal(put.status, 302);
+  assert.equal(put.location, '/game-records');
+
+  const updated = await GameRecord.findById(rec._id).lean();
+  assert.equal(updated.opponentDeck, 'Storm');
+  assert.equal(updated.result, 'draw');
+  assert.equal(updated.deck.toString(), control._id.toString());
+});
+
+test('PUT with an empty opponent re-renders the form with an error and no change', async () => {
+  const aggro = await Deck.findOne({ name: 'Aggro' });
+  const rec = await logGame(alice, aggro._id, 'KeepMe', 'win');
+
+  const put = await alice.request('PUT', `/game-records/${rec._id}`, {
+    deck_id: aggro._id.toString(),
+    opponent_deck: '   ',
+    result: 'win',
+  });
+  assert.equal(put.status, 400);
+  assert.match(put.text, /Edit Game/);
+
+  const unchanged = await GameRecord.findById(rec._id).lean();
+  assert.equal(unchanged.opponentDeck, 'KeepMe');
+});
+
+test('a user cannot view or edit another user\'s record', async () => {
+  const aggro = await Deck.findOne({ name: 'Aggro' });
+  const rec = await logGame(alice, aggro._id, 'AlicesGame', 'win');
+
+  const bob = makeClient();
+  await bob.request('POST', '/register', { username_input: 'Bob', password_input: 'hunter2hunter' });
+
+  const view = await bob.request('GET', `/game-records/${rec._id}/edit`);
+  assert.equal(view.status, 404);
+
+  const put = await bob.request('PUT', `/game-records/${rec._id}`, {
+    deck_id: aggro._id.toString(),
+    opponent_deck: 'Hacked',
+    result: 'loss',
+  });
+  assert.equal(put.status, 404);
+
+  const unchanged = await GameRecord.findById(rec._id).lean();
+  assert.equal(unchanged.opponentDeck, 'AlicesGame');
+});
+
 export { makeClient, logGame };
