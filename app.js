@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { router } from './routes/index.js';
 import { connectMongo } from './config/db.js';
 import { attachUser } from './middleware/auth.js';
+import { percent, eq, formatDate } from './lib/viewHelpers.js';
 
 const app = express();
 
@@ -24,16 +25,7 @@ const rewriteUnsupportedBrowserMethods = (req, res, next) => {
 };
 
 // View engine: Handlebars
-app.engine(
-  'handlebars',
-  engine({
-    defaultLayout: 'main',
-    helpers: {
-      // Integer percentage of part within whole; 0 when whole is 0 (used for bar widths).
-      percent: (part, whole) => (whole ? Math.round((Number(part) / Number(whole)) * 100) : 0),
-    },
-  })
-);
+app.engine('handlebars', engine({ defaultLayout: 'main', helpers: { percent, eq, formatDate } }));
 app.set('view engine', 'handlebars');
 app.set('views', './views');
 
