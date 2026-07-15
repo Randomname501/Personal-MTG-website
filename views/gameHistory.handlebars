@@ -1,0 +1,51 @@
+<main>
+  <h1>Match History</h1>
+  <p><a href="/dashboard" class="button">&larr; Dashboard</a></p>
+
+  <form action="/game-records" method="GET" class="filter-bar">
+    <div class="form-group">
+      <label for="deck">Deck</label>
+      <select name="deck" id="deck">
+        <option value="">All decks</option>
+        {{#each decks}}
+          <option value="{{this._id}}" {{#if (eq this._id ../filter.deck)}}selected{{/if}}>{{this.name}}</option>
+        {{/each}}
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="result">Result</label>
+      <select name="result" id="result">
+        <option value="">All results</option>
+        {{#each results}}
+          <option value="{{this}}" {{#if (eq this ../filter.result)}}selected{{/if}}>{{this}}</option>
+        {{/each}}
+      </select>
+    </div>
+    <button type="submit" class="submit-button">Apply</button>
+    {{#if hasFilter}}<a href="/game-records" class="button cancel-button">Clear</a>{{/if}}
+  </form>
+
+  {{#if games.length}}
+    <table class="history-table">
+      <thead>
+        <tr><th>Date</th><th>Deck</th><th>Opponent</th><th>Result</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {{#each games}}
+          <tr>
+            <td>{{formatDate this.createdAt}}</td>
+            <td>{{#if this.deck}}{{this.deck.name}}{{else}}&mdash;{{/if}}</td>
+            <td>{{this.opponentDeck}}</td>
+            <td class="result-{{this.result}}">{{this.result}}</td>
+            <td class="row-actions">
+              <a href="/game-records/{{this._id}}/edit">Edit</a>
+              <a href="/game-records/{{this._id}}/delete">Delete</a>
+            </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <p>{{#if hasFilter}}No games match this filter.{{else}}You haven't logged any games yet.{{/if}}</p>
+  {{/if}}
+</main>
