@@ -203,4 +203,17 @@ test('a user cannot delete another user\'s record', async () => {
   assert.notEqual(stillThere, null);
 });
 
+test('filtering by another user\'s deck id is ignored (not leaked/filtered to it)', async () => {
+  const dave = makeClient();
+  await dave.request('POST', '/register', { username_input: 'Dave', password_input: 'hunter2hunter' });
+  await dave.request('POST', '/decks', { name: 'DavesDeck', format: 'Modern', colors: ['B'] });
+  const davesDeck = await Deck.findOne({ name: 'DavesDeck' });
+
+  const res = await alice.request('GET', `/game-records?deck=${davesDeck._id}`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Burn/);
+  assert.match(res.text, /Tron/);
+  assert.match(res.text, /Goblins/);
+});
+
 export { makeClient, logGame };

@@ -22,11 +22,14 @@ const findOwnedRecord = async (id, userId) => {
   return GameRecord.findOne({ _id: id, user: userId });
 };
 
+// The user's decks, name-sorted and lean — for the filter bar and the edit form's select.
+const listOwnedDecks = (userId) => Deck.find({ owner: userId }).sort({ name: 1 }).lean();
+
 // Match history: the user's games, newest-first, with optional deck/result filters.
 router.get('/game-records', requireAuth, async (req, res, next) => {
   try {
     const userId = req.currentUser._id;
-    const decks = await Deck.find({ owner: userId }).sort({ name: 1 }).lean();
+    const decks = await listOwnedDecks(userId);
 
     const filter = { user: userId };
     const deckIds = new Set(decks.map((d) => d._id.toString()));
@@ -77,7 +80,7 @@ router.get('/game-records/:id/edit', requireAuth, async (req, res, next) => {
     const record = await findOwnedRecord(req.params.id, req.currentUser._id);
     if (!record) return res.status(404).render('404', { title: 'Not Found' });
 
-    const decks = await Deck.find({ owner: req.currentUser._id }).sort({ name: 1 }).lean();
+    const decks = await listOwnedDecks(req.currentUser._id);
     res.render('gameRecordForm', {
       title: 'Edit Game',
       decks,
@@ -104,7 +107,7 @@ router.put('/game-records/:id', requireAuth, async (req, res, next) => {
       req.currentUser._id
     );
     if (!input) {
-      const decks = await Deck.find({ owner: req.currentUser._id }).sort({ name: 1 }).lean();
+      const decks = await listOwnedDecks(req.currentUser._id);
       return res.status(400).render('gameRecordForm', {
         title: 'Edit Game',
         hasError: true,
