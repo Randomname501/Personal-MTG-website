@@ -848,3 +848,52 @@ main:not(.landing) h2 {
 /* The deck-card title link should read as a heading, not a plain link. */
 .deck-card h3 a { color: inherit; }
 .deck-card h3 a:hover { color: var(--mana-u); }
+
+/* ============================================================
+   MATCH HISTORY
+   ============================================================ */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.9rem;
+  margin-bottom: 1.4rem;
+  padding: 1rem 1.2rem;
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.filter-bar .form-group { margin-bottom: 0; }
+.filter-bar select { min-width: 10rem; }
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.history-table th,
+.history-table td {
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+.history-table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.history-table tbody tr:hover { background: rgba(168, 134, 63, 0.08); }
+
+.result-win { color: var(--mana-g); font-weight: 600; text-transform: capitalize; }
+.result-loss { color: var(--mana-r); font-weight: 600; text-transform: capitalize; }
+.result-draw { color: var(--gold); font-weight: 600; text-transform: capitalize; }
+
+.row-actions { white-space: nowrap; }
+.row-actions a {
+  color: var(--mana-u);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.row-actions a:hover { text-decoration: underline; }
+.row-actions a + a { margin-left: 0.8rem; }
