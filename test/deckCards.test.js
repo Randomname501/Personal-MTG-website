@@ -210,4 +210,37 @@ test('deck detail shows the card list but no Manage button to a non-owner', asyn
   assert.doesNotMatch(res.text, /Manage Cards/); // but the button is owner-only
 });
 
+test('adding with no scryfall_id redirects without modifying the deck', async () => {
+  const gwen = makeClient();
+  await gwen.request('POST', '/register', { username_input: 'Gwen', password_input: 'hunter2hunter' });
+  await gwen.request('POST', '/decks', { name: 'GwensDeck', format: 'Modern', colors: ['G'] });
+  const deck = await Deck.findOne({ name: 'GwensDeck' });
+
+  const res = await gwen.request('POST', `/decks/${deck._id}/cards`, { q: '' }); // no scryfall_id
+  assert.equal(res.status, 302);
+
+  const updated = await Deck.findOne({ name: 'GwensDeck' });
+  assert.equal(updated.cards.length, 0);
+});
+
+test('removing a card that is not in the deck is a no-op', async () => {
+  const hugo = makeClient();
+  await hugo.request('POST', '/register', { username_input: 'Hugo', password_input: 'hunter2hunter' });
+  await hugo.request('POST', '/decks', { name: 'HugosDeck', format: 'Modern', colors: ['R'] });
+  const deck = await Deck.findOne({ name: 'HugosDeck' });
+
+  const res = await hugo.request('POST', `/decks/${deck._id}/cards/does-not-exist/remove`);
+  assert.equal(res.status, 302);
+
+  const updated = await Deck.findOne({ name: 'HugosDeck' });
+  assert.equal(updated.cards.length, 0);
+});
+
+test('deck detail shows the card count (sum of quantities)', async () => {
+  const deck = await aliceDeck();
+  const res = await alice.request('GET', `/decks/${deck._id}`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Cards \(2\)/);
+});
+
 export { makeClient, aliceDeck };
