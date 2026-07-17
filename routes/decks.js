@@ -115,4 +115,23 @@ router.post('/decks/:id/cards', requireAuth, async (req, res, next) => {
   }
 });
 
+router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+
+    const card = deck.cards.find((c) => c.scryfallId === req.params.scryfallId);
+    if (card) {
+      card.quantity -= 1;
+      if (card.quantity <= 0) {
+        deck.cards = deck.cards.filter((c) => c.scryfallId !== req.params.scryfallId);
+      }
+      await deck.save();
+    }
+    res.redirect(`/decks/${deck._id}/cards`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export { router as decksRouter };

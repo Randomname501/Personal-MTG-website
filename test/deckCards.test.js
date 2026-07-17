@@ -160,4 +160,36 @@ test('a non-owner cannot add a card', async () => {
   assert.equal(updated.cards.find((c) => c.scryfallId === 'abc-123').quantity, before); // quantity unchanged
 });
 
+test('removing a card decrements its quantity, then deletes it at zero', async () => {
+  // Fresh deck so this test is independent of the add tests' state.
+  const dave = makeClient();
+  await dave.request('POST', '/register', { username_input: 'Dave', password_input: 'hunter2hunter' });
+  await dave.request('POST', '/decks', { name: 'DavesDeck', format: 'Modern', colors: ['U'] });
+  const deck = await Deck.findOne({ name: 'DavesDeck' });
+
+  // Add the card twice -> quantity 2.
+  await dave.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+  await dave.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+
+  const dec = await dave.request('POST', `/decks/${deck._id}/cards/abc-123/remove`);
+  assert.equal(dec.status, 302);
+  let updated = await Deck.findOne({ name: 'DavesDeck' });
+  assert.equal(updated.cards.find((c) => c.scryfallId === 'abc-123').quantity, 1);
+
+  await dave.request('POST', `/decks/${deck._id}/cards/abc-123/remove`);
+  updated = await Deck.findOne({ name: 'DavesDeck' });
+  assert.equal(updated.cards.find((c) => c.scryfallId === 'abc-123'), undefined); // entry gone at 0
+});
+
+test('a non-owner cannot remove a card', async () => {
+  const deck = await aliceDeck(); // Alice's deck still has the Counterspell from Task 3
+  const erin = makeClient();
+  await erin.request('POST', '/register', { username_input: 'Erin', password_input: 'hunter2hunter' });
+  const res = await erin.request('POST', `/decks/${deck._id}/cards/abc-123/remove`);
+  assert.equal(res.status, 404);
+
+  const updated = await aliceDeck();
+  assert.ok(updated.cards.find((c) => c.scryfallId === 'abc-123'), 'card untouched');
+});
+
 export { makeClient, aliceDeck };
