@@ -897,3 +897,71 @@ main:not(.landing) h2 {
 }
 .row-actions a:hover { text-decoration: underline; }
 .row-actions a + a { margin-left: 0.8rem; }
+
+/* ============================================================
+   CARD MANAGER & CARD LISTS
+   ============================================================ */
+.card-search {
+  display: flex;
+  gap: 0.7rem;
+  margin-bottom: 1.6rem;
+}
+.card-search input {
+  flex: 1;
+  padding: 0.6rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.card-search input:focus {
+  outline: none;
+  border-color: var(--mana-u);
+  box-shadow: 0 0 0 3px rgba(31, 92, 153, 0.18);
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.6rem;
+}
+.card-tile {
+  background: #fbf8ef;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+}
+.card-tile img { width: 100%; height: auto; display: block; }
+.card-tile__body { padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.card-tile__name { font-family: 'Cinzel', serif; font-weight: 600; font-size: 0.95rem; }
+.card-tile__meta { font-size: 0.8rem; color: var(--ink-soft); }
+.card-tile form { margin-top: 0.3rem; }
+.card-tile .button { width: 100%; text-align: center; }
+
+.cardlist { list-style: none; margin: 0; padding: 0; }
+.cardlist li {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.2rem;
+  border-bottom: 1px solid var(--rule);
+}
+.cardlist__qty { font-weight: 700; color: var(--ink-soft); min-width: 2.2rem; }
+.cardlist__name { font-weight: 600; }
+.cardlist__meta { color: var(--ink-soft); font-size: 0.85rem; margin-left: auto; }
+.cardlist li form { margin-left: 0.8rem; }
+
+.deck-cards-view { margin-bottom: 1.6rem; }
+.deck-cards-view__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
