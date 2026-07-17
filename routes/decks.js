@@ -3,8 +3,15 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, MTG_COLORS } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
+import { searchCards, getCardById } from '../lib/scryfall.js';
 
 const router = express.Router();
+
+// Load a deck only if it belongs to the user; null for a bad id or non-owner.
+const findOwnedDeck = async (id, userId) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) return null;
+  return Deck.findOne({ _id: id, owner: userId });
+};
 
 router.get('/decks/new', requireAuth, (req, res) => {
   res.render('deckForm', {
@@ -58,6 +65,27 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     }
     const stats = await getDeckStats(deck._id);
     res.render('deckDetail', { title: deck.name, deck, stats });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/decks/:id/cards', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+
+    const query = (req.query.q || '').trim();
+    const searched = query.length > 0;
+    const results = searched ? await searchCards(query) : [];
+
+    res.render('deckCards', {
+      title: `Manage: ${deck.name}`,
+      deck: deck.toObject(),
+      query,
+      searched,
+      results,
+    });
   } catch (err) {
     next(err);
   }

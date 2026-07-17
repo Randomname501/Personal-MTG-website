@@ -1,0 +1,55 @@
+<main>
+  <p><a href="/decks/{{deck._id}}">&larr; Back to {{deck.name}}</a></p>
+  <h1>Manage Cards: {{deck.name}}</h1>
+
+  <form action="/decks/{{deck._id}}/cards" method="GET" class="card-search">
+    <input type="text" name="q" value="{{query}}" placeholder="Search Scryfall (e.g. counterspell, t:creature c:u)" />
+    <button type="submit" class="submit-button">Search</button>
+  </form>
+
+  {{#if searched}}
+    <section class="card-results">
+      <h2>Results</h2>
+      {{#if results.length}}
+        <div class="card-grid">
+          {{#each results}}
+            <div class="card-tile">
+              {{#if this.imageUrl}}<img src="{{this.imageUrl}}" alt="{{this.name}}" loading="lazy" />{{/if}}
+              <div class="card-tile__body">
+                <span class="card-tile__name">{{this.name}}</span>
+                <span class="card-tile__meta">{{this.manaCost}} &middot; {{this.typeLine}}</span>
+                <form action="/decks/{{../deck._id}}/cards" method="POST">
+                  <input type="hidden" name="scryfall_id" value="{{this.scryfallId}}" />
+                  <input type="hidden" name="q" value="{{../query}}" />
+                  <button type="submit" class="button">Add</button>
+                </form>
+              </div>
+            </div>
+          {{/each}}
+        </div>
+      {{else}}
+        <p>No cards found for &ldquo;{{query}}&rdquo;.</p>
+      {{/if}}
+    </section>
+  {{/if}}
+
+  <section class="deck-cardlist">
+    <h2>In this deck</h2>
+    {{#if deck.cards.length}}
+      <ul class="cardlist">
+        {{#each deck.cards}}
+          <li>
+            <span class="cardlist__qty">{{this.quantity}}&times;</span>
+            <span class="cardlist__name">{{this.name}}</span>
+            <span class="cardlist__meta">{{this.manaCost}}</span>
+            <form action="/decks/{{../deck._id}}/cards/{{this.scryfallId}}/remove" method="POST" style="display:inline">
+              <button type="submit" class="button cancel-button">Remove</button>
+            </form>
+          </li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <p>No cards yet. Search above to add some.</p>
+    {{/if}}
+  </section>
+</main>
