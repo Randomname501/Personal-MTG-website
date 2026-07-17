@@ -5,6 +5,26 @@
     {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}{{#if deck.colors.length}} &middot; {{#each deck.colors}}{{this}} {{/each}}{{/if}}
   </p>
 
+  <section class="deck-cards-view">
+    <div class="deck-cards-view__head">
+      <h2>Cards ({{cardCount}})</h2>
+      {{#if isOwner}}<a href="/decks/{{deck._id}}/cards" class="button">Manage Cards</a>{{/if}}
+    </div>
+    {{#if deck.cards.length}}
+      <ul class="cardlist">
+        {{#each deck.cards}}
+          <li>
+            <span class="cardlist__qty">{{this.quantity}}&times;</span>
+            <span class="cardlist__name">{{this.name}}</span>
+            <span class="cardlist__meta">{{this.manaCost}} &middot; {{this.typeLine}}</span>
+          </li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <p>No cards in this deck yet.{{#if isOwner}} <a href="/decks/{{deck._id}}/cards">Add some</a>.{{/if}}</p>
+    {{/if}}
+  </section>
+
   <section class="deck-stats">
     <h2>Record</h2>
     {{#if stats.total}}

@@ -192,4 +192,22 @@ test('a non-owner cannot remove a card', async () => {
   assert.ok(updated.cards.find((c) => c.scryfallId === 'abc-123'), 'card untouched');
 });
 
+test('deck detail shows the card list and a Manage Cards button for the owner', async () => {
+  const deck = await aliceDeck(); // has Counterspell from Task 3
+  const res = await alice.request('GET', `/decks/${deck._id}`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Counterspell/);
+  assert.match(res.text, /Manage Cards/);
+});
+
+test('deck detail shows the card list but no Manage button to a non-owner', async () => {
+  const deck = await aliceDeck();
+  const frank = makeClient();
+  await frank.request('POST', '/register', { username_input: 'Frank', password_input: 'hunter2hunter' });
+  const res = await frank.request('GET', `/decks/${deck._id}`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Counterspell/); // list is public
+  assert.doesNotMatch(res.text, /Manage Cards/); // but the button is owner-only
+});
+
 export { makeClient, aliceDeck };

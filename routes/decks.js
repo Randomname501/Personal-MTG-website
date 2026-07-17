@@ -64,7 +64,9 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
       return res.status(404).render('404', { title: 'Not Found' });
     }
     const stats = await getDeckStats(deck._id);
-    res.render('deckDetail', { title: deck.name, deck, stats });
+    const isOwner = req.currentUser._id.toString() === deck.owner.toString();
+    const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0);
+    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, cardCount });
   } catch (err) {
     next(err);
   }
