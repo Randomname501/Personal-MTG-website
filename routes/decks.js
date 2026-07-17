@@ -91,4 +91,28 @@ router.get('/decks/:id/cards', requireAuth, async (req, res, next) => {
   }
 });
 
+router.post('/decks/:id/cards', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+
+    const scryfallId = (req.body.scryfall_id || '').trim();
+    const q = (req.body.q || '').trim();
+    const back = q ? `/decks/${deck._id}/cards?q=${encodeURIComponent(q)}` : `/decks/${deck._id}/cards`;
+    if (!scryfallId) return res.redirect(back);
+
+    // Re-fetch the card server-side for an authoritative snapshot; never trust
+    // client-posted card fields.
+    const card = await getCardById(scryfallId);
+    const existing = deck.cards.find((c) => c.scryfallId === card.scryfallId);
+    if (existing) existing.quantity += 1;
+    else deck.cards.push({ ...card, quantity: 1 });
+    await deck.save();
+
+    res.redirect(back);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export { router as decksRouter };

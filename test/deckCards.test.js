@@ -123,4 +123,39 @@ test('a non-owner cannot open the manager page', async () => {
   assert.equal(res.status, 404);
 });
 
+test('adding a card snapshots it into the deck', async () => {
+  const deck = await aliceDeck();
+  const res = await alice.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123', q: 'counterspell' });
+  assert.equal(res.status, 302);
+  assert.match(res.location, /\/cards\?q=counterspell$/);
+
+  const updated = await aliceDeck();
+  const card = updated.cards.find((c) => c.scryfallId === 'abc-123');
+  assert.ok(card, 'card was added');
+  assert.equal(card.name, 'Counterspell');
+  assert.equal(card.manaCost, '{U}{U}');
+  assert.equal(card.cmc, 2);
+  assert.equal(card.typeLine, 'Instant');
+  assert.equal(card.quantity, 1);
+});
+
+test('adding the same card again increments its quantity', async () => {
+  const deck = await aliceDeck();
+  await alice.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+  const updated = await aliceDeck();
+  const card = updated.cards.find((c) => c.scryfallId === 'abc-123');
+  assert.equal(card.quantity, 2);
+});
+
+test('a non-owner cannot add a card', async () => {
+  const deck = await aliceDeck();
+  const carol = makeClient();
+  await carol.request('POST', '/register', { username_input: 'Carol', password_input: 'hunter2hunter' });
+  const res = await carol.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+  assert.equal(res.status, 404);
+
+  const updated = await aliceDeck();
+  assert.equal(updated.cards.filter((c) => c.scryfallId === 'abc-123').length, 1); // unchanged (qty still one entry)
+});
+
 export { makeClient, aliceDeck };
