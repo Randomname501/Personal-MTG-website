@@ -149,6 +149,7 @@ test('adding the same card again increments its quantity', async () => {
 
 test('a non-owner cannot add a card', async () => {
   const deck = await aliceDeck();
+  const before = (await aliceDeck()).cards.find((c) => c.scryfallId === 'abc-123').quantity;
   const carol = makeClient();
   await carol.request('POST', '/register', { username_input: 'Carol', password_input: 'hunter2hunter' });
   const res = await carol.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
@@ -156,6 +157,7 @@ test('a non-owner cannot add a card', async () => {
 
   const updated = await aliceDeck();
   assert.equal(updated.cards.filter((c) => c.scryfallId === 'abc-123').length, 1); // unchanged (qty still one entry)
+  assert.equal(updated.cards.find((c) => c.scryfallId === 'abc-123').quantity, before); // quantity unchanged
 });
 
 export { makeClient, aliceDeck };
