@@ -48,6 +48,18 @@ test('colors count each color of a multicolor card; colorless to C; weighted; on
   assert.deepEqual(r.colors.map((c) => c.color), ['U', 'B', 'C']);
 });
 
+test('colors exclude lands', () => {
+  const r = getCardInsights([
+    card({ colors: ['U'], typeLine: 'Creature', quantity: 3 }),
+    card({ colors: [], typeLine: 'Basic Land — Island', quantity: 20 }),
+  ]);
+  assert.equal(r.colors.length, 1);
+  assert.equal(r.colors[0].color, 'U');
+  assert.equal(r.colors[0].count, 3);
+  assert.equal(r.colors[0].pct, 100);
+  assert.ok(!r.colors.some((c) => c.color === 'C'));
+});
+
 test('types use priority so each card counts once and the counts sum to total', () => {
   const r = getCardInsights([
     card({ typeLine: 'Artifact Creature — Golem' }),      // Creature (beats Artifact)

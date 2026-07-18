@@ -50,9 +50,11 @@ Rules:
   except `cmc >= 7` goes to the `'7+'` bucket. All 8 buckets (`'0'`..`'6'`,`'7+'`) are
   always present, in that order, even when their count is 0. Each card contributes its
   `quantity` to its bucket's count.
-- **Colors** — every card contributes its `quantity` to each color in its `colors`
-  array; a card whose `colors` is empty/absent contributes to `'C'` (colorless). Output
-  is in the order `W, U, B, R, G, C`, filtered to entries with `count > 0`.
+- **Colors** — nonland cards only (mirrors the curve). Each nonland card contributes its
+  `quantity` to each color in its `colors` array; a nonland card whose `colors` is
+  empty/absent contributes to `'C'` (colorless). Lands contribute nothing to any color,
+  including `'C'`. Output is in the order `W, U, B, R, G, C`, filtered to entries with
+  `count > 0`.
 - **Types** — each card is assigned exactly one primary category by this priority
   (first match wins), so the counts sum to `total`:
   `Land → Creature → Planeswalker → Instant → Sorcery → Artifact → Enchantment → Battle
@@ -114,9 +116,10 @@ Pure unit tests over hand-built card arrays:
 - **Curve excludes lands & buckets:** a mix including lands and a `cmc 9` card — assert
   lands are absent from the curve, `nonlandTotal` is correct, the `cmc 9` card lands in
   `'7+'`, and `quantity` weighting is applied.
-- **Colors:** a multicolor card (e.g. `['U','B']`) counts toward both U and B; a
-  colorless card lands in `C`; quantities weight the counts; only `> 0` colors appear,
-  in `WUBRG C` order.
+- **Colors:** nonland cards only (mirrors the curve) — a multicolor card (e.g.
+  `['U','B']`) counts toward both U and B; a colorless nonland card lands in `C`; lands
+  contribute nothing (not even to `C`); quantities weight the counts; only `> 0` colors
+  appear, in `WUBRG C` order.
 - **Types priority:** `Artifact Creature` → Creature; `Artifact Land` → Land;
   `Legendary Planeswalker` → Planeswalker; an unmatched line → Other; counts sum to
   `total`.
