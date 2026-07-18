@@ -84,4 +84,42 @@
       {{/each}}
     </section>
   {{/if}}
+
+  {{#if deck.cards.length}}
+    <section class="deck-breakdown">
+      <h2>Card breakdown</h2>
+      <div class="breakdown-groups">
+        <div class="breakdown-group">
+          <h3>Mana curve</h3>
+          {{#each insights.manaCurve}}
+            <div class="bar-row">
+              <span class="bar-label">{{this.bucket}}</span>
+              <span class="bar"><span class="bar__fill bar__fill--count" style="width: {{this.pct}}%"></span></span>
+              <span class="bar-val">{{this.count}}</span>
+            </div>
+          {{/each}}
+        </div>
+        <div class="breakdown-group">
+          <h3>Colors</h3>
+          {{#each insights.colors}}
+            <div class="bar-row">
+              <span class="bar-label">{{this.color}}</span>
+              <span class="bar"><span class="bar__fill bar__fill--mana-{{this.color}}" style="width: {{this.pct}}%"></span></span>
+              <span class="bar-val">{{this.count}}</span>
+            </div>
+          {{/each}}
+        </div>
+        <div class="breakdown-group">
+          <h3>Types</h3>
+          {{#each insights.types}}
+            <div class="bar-row">
+              <span class="bar-label">{{this.type}}</span>
+              <span class="bar"><span class="bar__fill bar__fill--count" style="width: {{this.pct}}%"></span></span>
+              <span class="bar-val">{{this.count}}</span>
+            </div>
+          {{/each}}
+        </div>
+      </div>
+    </section>
+  {{/if}}
 </main>

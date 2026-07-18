@@ -243,4 +243,13 @@ test('deck detail shows the card count (sum of quantities)', async () => {
   assert.match(res.text, /Cards \(2\)/);
 });
 
+test('deck detail shows the card breakdown for a deck with cards', async () => {
+  const deck = await aliceDeck(); // holds Counterspell (Instant), from earlier tests
+  const res = await alice.request('GET', `/decks/${deck._id}`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Card breakdown/);
+  assert.match(res.text, /Mana curve/);
+  assert.match(res.text, /Instant/); // Counterspell's primary type
+});
+
 export { makeClient, aliceDeck };

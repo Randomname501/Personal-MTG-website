@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, MTG_COLORS } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
+import { getCardInsights } from '../lib/cardInsights.js';
 import { searchCards, getCardById } from '../lib/scryfall.js';
 
 const router = express.Router();
@@ -66,7 +67,8 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const stats = await getDeckStats(deck._id);
     const isOwner = req.currentUser._id.toString() === deck.owner.toString();
     const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0);
-    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, cardCount });
+    const insights = getCardInsights(deck.cards || []);
+    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, cardCount, insights });
   } catch (err) {
     next(err);
   }
