@@ -965,3 +965,35 @@ main:not(.landing) h2 {
   gap: 1rem;
   flex-wrap: wrap;
 }
+
+/* ============================================================
+   CARD BREAKDOWN (mana curve / colors / types)
+   ============================================================ */
+.deck-breakdown { margin-bottom: 1.6rem; }
+.breakdown-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.5rem;
+}
+.breakdown-group {
+  background: #fbf8ef;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.1rem 1.3rem;
+  box-shadow: var(--shadow-card);
+}
+.breakdown-group h3 {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+/* Bar fills for the breakdown (base .bar/.bar-row come from the stats styles). */
+.bar__fill--count { background: var(--mana-u); }
+.bar__fill--mana-W { background: var(--mana-w-edge); }
+.bar__fill--mana-U { background: var(--mana-u); }
+.bar__fill--mana-B { background: var(--mana-b); }
+.bar__fill--mana-R { background: var(--mana-r); }
+.bar__fill--mana-G { background: var(--mana-g); }
+.bar__fill--mana-C { background: var(--ink-soft); }
