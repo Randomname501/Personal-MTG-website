@@ -65,6 +65,23 @@ test('types use priority so each card counts once and the counts sum to total', 
   assert.equal(r.types.reduce((s, t) => s + t.count, 0), r.total);
 });
 
+test('type priority chain: Instant, Sorcery, Artifact, Battle, Enchantment each land standalone', () => {
+  const r = getCardInsights([
+    card({ typeLine: 'Instant' }),
+    card({ typeLine: 'Sorcery' }),
+    card({ typeLine: 'Artifact — Equipment' }),
+    card({ typeLine: 'Battle — Siege' }),
+    card({ typeLine: 'Enchantment — Aura' }),
+  ]);
+  const byType = Object.fromEntries(r.types.map((t) => [t.type, t.count]));
+  assert.equal(byType.Instant, 1);
+  assert.equal(byType.Sorcery, 1);
+  assert.equal(byType.Artifact, 1);
+  assert.equal(byType.Battle, 1);
+  assert.equal(byType.Enchantment, 1);
+  assert.equal(r.types.reduce((s, t) => s + t.count, 0), 5);
+});
+
 test('pct scales each group to its own max, with no divide-by-zero on empty buckets', () => {
   const r = getCardInsights([
     card({ typeLine: 'Creature', cmc: 1, quantity: 4 }),
