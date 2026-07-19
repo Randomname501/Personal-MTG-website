@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { Deck, DECK_FORMATS, MTG_COLORS } from '../models/index.js';
+import { Deck, DECK_FORMATS, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
 import { getCardInsights } from '../lib/cardInsights.js';
@@ -13,6 +13,11 @@ const findOwnedDeck = async (id, userId) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
   return Deck.findOne({ _id: id, owner: userId });
 };
+
+// Only allow local relative redirects (a path starting with a single '/'),
+// never an absolute/scheme URL — prevents open redirects.
+const safeBack = (value, fallback) =>
+  (typeof value === 'string' && /^\/(?!\/)/.test(value) ? value : fallback);
 
 router.get('/decks/new', requireAuth, (req, res) => {
   res.render('deckForm', {
@@ -66,9 +71,10 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     }
     const stats = await getDeckStats(deck._id);
     const isOwner = req.currentUser._id.toString() === deck.owner.toString();
+    const isTracked = (req.currentUser.trackedDecks || []).some((t) => t.toString() === deck._id.toString());
     const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0);
     const insights = getCardInsights(deck.cards || []);
-    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, cardCount, insights });
+    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights });
   } catch (err) {
     next(err);
   }
@@ -133,6 +139,40 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
       await deck.save();
     }
     res.redirect(`/decks/${deck._id}/cards`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/decks/:id/track', requireAuth, async (req, res, next) => {
+  try {
+    const back = safeBack(req.body.back, `/decks/${req.params.id}`);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.redirect('/decks');
+
+    const deck = await Deck.findById(req.params.id).select('owner').lean();
+    // Can't track a missing deck or your own deck.
+    if (deck && deck.owner.toString() !== req.currentUser._id.toString()) {
+      await User.updateOne(
+        { _id: req.currentUser._id },
+        { $addToSet: { trackedDecks: deck._id } }
+      );
+    }
+    res.redirect(back);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/decks/:id/untrack', requireAuth, async (req, res, next) => {
+  try {
+    const back = safeBack(req.body.back, `/decks/${req.params.id}`);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.redirect('/decks');
+
+    await User.updateOne(
+      { _id: req.currentUser._id },
+      { $pull: { trackedDecks: req.params.id } }
+    );
+    res.redirect(back);
   } catch (err) {
     next(err);
   }

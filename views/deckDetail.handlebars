@@ -8,7 +8,21 @@
   <section class="deck-cards-view">
     <div class="deck-cards-view__head">
       <h2>Cards ({{cardCount}})</h2>
-      {{#if isOwner}}<a href="/decks/{{deck._id}}/cards" class="button">Manage Cards</a>{{/if}}
+      {{#if isOwner}}
+        <a href="/decks/{{deck._id}}/cards" class="button">Manage Cards</a>
+      {{else}}
+        {{#if isTracked}}
+          <form action="/decks/{{deck._id}}/untrack" method="POST" style="display:inline">
+            <input type="hidden" name="back" value="/decks/{{deck._id}}" />
+            <button type="submit" class="button cancel-button">Untrack</button>
+          </form>
+        {{else}}
+          <form action="/decks/{{deck._id}}/track" method="POST" style="display:inline">
+            <input type="hidden" name="back" value="/decks/{{deck._id}}" />
+            <button type="submit" class="button">Track</button>
+          </form>
+        {{/if}}
+      {{/if}}
     </div>
     {{#if deck.cards.length}}
       <ul class="cardlist">
