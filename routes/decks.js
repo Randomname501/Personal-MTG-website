@@ -27,6 +27,40 @@ router.get('/decks/new', requireAuth, (req, res) => {
   });
 });
 
+router.get('/decks', requireAuth, async (req, res, next) => {
+  try {
+    const filter = {};
+    if (DECK_FORMATS.includes(req.query.format)) filter.format = req.query.format;
+
+    const decks = await Deck.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('owner', 'username')
+      .lean();
+
+    const trackedIds = new Set((req.currentUser.trackedDecks || []).map((id) => id.toString()));
+    const userId = req.currentUser._id.toString();
+    const rows = decks.map((d) => ({
+      _id: d._id,
+      name: d.name,
+      format: d.format,
+      colors: d.colors,
+      owner: d.owner?.username ?? '—',
+      isOwner: d.owner?._id?.toString() === userId,
+      isTracked: trackedIds.has(d._id.toString()),
+    }));
+
+    res.render('deckBrowse', {
+      title: 'Browse Decks',
+      decks: rows,
+      formats: DECK_FORMATS,
+      filter: { format: filter.format ?? '' },
+      hasFilter: Boolean(filter.format),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/decks', requireAuth, async (req, res, next) => {
   const { name, format, commander, archetype, description } = req.body;
   // Checkboxes arrive as a single string (one box) or an array (several); normalize.

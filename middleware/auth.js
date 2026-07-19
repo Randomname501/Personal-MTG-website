@@ -18,6 +18,7 @@ const loggedInNav = [
   { link: '/deckLeaderboard', text: 'Deck Leaderboard' },
   { link: '/dashboard', text: 'Dashboard' },
   { link: '/game-records', text: 'Match History' },
+  { link: '/decks', text: 'Browse Decks' },
   { link: '/logout', text: 'Logout' },
 ];
 

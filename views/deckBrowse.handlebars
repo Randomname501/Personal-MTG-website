@@ -1,0 +1,46 @@
+<main>
+  <h1>Browse Decks</h1>
+
+  <form action="/decks" method="GET" class="filter-bar">
+    <div class="form-group">
+      <label for="format">Format</label>
+      <select name="format" id="format">
+        <option value="">All formats</option>
+        {{#each formats}}
+          <option value="{{this}}" {{#if (eq this ../filter.format)}}selected{{/if}}>{{this}}</option>
+        {{/each}}
+      </select>
+    </div>
+    <button type="submit" class="submit-button">Apply</button>
+    {{#if hasFilter}}<a href="/decks" class="button cancel-button">Clear</a>{{/if}}
+  </form>
+
+  {{#if decks.length}}
+    <section class="active-decks">
+      {{#each decks}}
+        <div class="deck-card">
+          <h3><a href="/decks/{{this._id}}">{{this.name}}</a></h3>
+          <p>By {{this.owner}} &middot; {{this.format}}{{#if this.colors.length}} &middot; {{#each this.colors}}{{this}} {{/each}}{{/if}}</p>
+          {{#if this.isOwner}}
+            <span class="track-label">Yours</span>
+          {{else}}
+            {{#if this.isTracked}}
+              <span class="track-label">Tracked &check;</span>
+              <form action="/decks/{{this._id}}/untrack" method="POST" style="display:inline">
+                <input type="hidden" name="back" value="/decks" />
+                <button type="submit" class="button cancel-button">Untrack</button>
+              </form>
+            {{else}}
+              <form action="/decks/{{this._id}}/track" method="POST" style="display:inline">
+                <input type="hidden" name="back" value="/decks" />
+                <button type="submit" class="button">Track</button>
+              </form>
+            {{/if}}
+          {{/if}}
+        </div>
+      {{/each}}
+    </section>
+  {{else}}
+    <p>{{#if hasFilter}}No decks match this format.{{else}}No decks yet.{{/if}}</p>
+  {{/if}}
+</main>

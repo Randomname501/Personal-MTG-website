@@ -127,3 +127,23 @@ test('track rejects a non-local back redirect (no open redirect)', async () => {
   assert.equal(res.status, 302);
   assert.equal(res.location, `/decks/${bobDeck._id}`); // safe default, not evil.com
 });
+
+test('browse lists decks from all users', async () => {
+  const res = await alice.request('GET', '/decks');
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Browse Decks/);
+  assert.match(res.text, /AliceDeck/);
+  assert.match(res.text, /BobDeck/);
+});
+
+test('browse filters by format', async () => {
+  const res = await alice.request('GET', '/decks?format=Legacy'); // BobDeck is Legacy
+  assert.equal(res.status, 200);
+  assert.match(res.text, /BobDeck/);
+  assert.doesNotMatch(res.text, /AliceDeck/); // Modern deck excluded
+});
+
+test('browse labels your own deck as Yours', async () => {
+  const res = await alice.request('GET', '/decks');
+  assert.match(res.text, /Yours/); // AliceDeck row
+});
