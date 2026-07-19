@@ -147,3 +147,12 @@ test('browse labels your own deck as Yours', async () => {
   const res = await alice.request('GET', '/decks');
   assert.match(res.text, /Yours/); // AliceDeck row
 });
+
+test('dashboard shows an untrack control for a tracked deck', async () => {
+  const bobDeck = await Deck.findOne({ name: 'BobDeck' });
+  await alice.request('POST', `/decks/${bobDeck._id}/track`, { back: '/dashboard' });
+  const res = await alice.request('GET', '/dashboard');
+  assert.equal(res.status, 200);
+  assert.match(res.text, /BobDeck/); // the tracked deck appears
+  assert.match(res.text, /\/untrack/); // with an untrack form
+});

@@ -31,9 +31,13 @@
 <h2>Tracked Decks</h2>
     {{#each trackedDecks}}
       <div class="deck-card">
-        <h3>{{this.name}}</h3>
+        <h3><a href="/decks/{{this._id}}">{{this.name}}</a></h3>
         <p>Format: {{this.format}}</p>
         <p>Created on: {{this.createdAt}}</p>
+        <form action="/decks/{{this._id}}/untrack" method="POST" style="display:inline">
+          <input type="hidden" name="back" value="/dashboard" />
+          <button type="submit" class="button cancel-button">Untrack</button>
+        </form>
       </div>
     {{else}}
       <p>You aren't tracking any decks yet.</p>

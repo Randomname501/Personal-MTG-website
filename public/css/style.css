@@ -997,3 +997,17 @@ main:not(.landing) h2 {
 .bar__fill--mana-R { background: var(--mana-r); }
 .bar__fill--mana-G { background: var(--mana-g); }
 .bar__fill--mana-C { background: var(--ink-soft); }
+
+/* ============================================================
+   DECK TRACKING
+   ============================================================ */
+.track-label {
+  display: inline-block;
+  margin-right: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.deck-card form { margin-top: 0.7rem; }
