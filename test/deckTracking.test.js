@@ -156,3 +156,28 @@ test('dashboard shows an untrack control for a tracked deck', async () => {
   assert.match(res.text, /BobDeck/); // the tracked deck appears
   assert.match(res.text, /\/untrack/); // with an untrack form
 });
+
+test('track/untrack with a malformed deck id redirect without a 500', async () => {
+  const t = await alice.request('POST', '/decks/not-an-id/track', { back: '/decks' });
+  assert.equal(t.status, 302);
+  assert.equal(t.location, '/decks');
+  const u = await alice.request('POST', '/decks/not-an-id/untrack', { back: '/decks' });
+  assert.equal(u.status, 302);
+  assert.equal(u.location, '/decks');
+});
+
+test('tracking a valid but nonexistent deck id is a safe no-op', async () => {
+  const ghostId = new mongoose.Types.ObjectId().toString();
+  const res = await alice.request('POST', `/decks/${ghostId}/track`, { back: '/decks' });
+  assert.equal(res.status, 302);
+  const a = await User.findOne({ username: 'Alice' });
+  assert.ok(!a.trackedDecks.some((id) => id.toString() === ghostId));
+});
+
+test('browse renders a Track form for a non-owner, non-tracked deck', async () => {
+  const bobDeck = await Deck.findOne({ name: 'BobDeck' });
+  await alice.request('POST', `/decks/${bobDeck._id}/untrack`, { back: '/decks' }); // ensure not tracked
+  const res = await alice.request('GET', '/decks');
+  assert.equal(res.status, 200);
+  assert.match(res.text, new RegExp(`/decks/${bobDeck._id}/track`)); // Track form action present
+});

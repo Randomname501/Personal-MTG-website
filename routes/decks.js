@@ -180,8 +180,8 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
 
 router.post('/decks/:id/track', requireAuth, async (req, res, next) => {
   try {
-    const back = safeBack(req.body.back, `/decks/${req.params.id}`);
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.redirect('/decks');
+    const back = safeBack(req.body.back, `/decks/${req.params.id}`);
 
     const deck = await Deck.findById(req.params.id).select('owner').lean();
     // Can't track a missing deck or your own deck.
@@ -199,8 +199,8 @@ router.post('/decks/:id/track', requireAuth, async (req, res, next) => {
 
 router.post('/decks/:id/untrack', requireAuth, async (req, res, next) => {
   try {
-    const back = safeBack(req.body.back, `/decks/${req.params.id}`);
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.redirect('/decks');
+    const back = safeBack(req.body.back, `/decks/${req.params.id}`);
 
     await User.updateOne(
       { _id: req.currentUser._id },
