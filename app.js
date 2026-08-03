@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
+import memorystore from 'memorystore';
 import { engine } from 'express-handlebars';
 import { fileURLToPath } from 'node:url';
 import { router } from './routes/index.js';
@@ -10,6 +11,7 @@ import { attachUser } from './middleware/auth.js';
 import { percent, eq, formatDate } from './lib/viewHelpers.js';
 
 const app = express();
+const MemoryStore = memorystore(session);
 
 const rewriteUnsupportedBrowserMethods = (req, res, next) => {
   // If the user posts to the server with a property called _method, rewrite the request's method
@@ -39,6 +41,10 @@ app.use(
     secret: 'some secret string!',
     resave: false,
     saveUninitialized: false,
+    cookie: { maxAge: 86400000 },
+    store: new MemoryStore({
+      checkPeriod: 86400000,
+    }),
   })
 );
 app.use(rewriteUnsupportedBrowserMethods);
