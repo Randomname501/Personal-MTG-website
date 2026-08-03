@@ -4,6 +4,7 @@ import cors from 'cors';
 import session from 'express-session';
 import memorystore from 'memorystore';
 import { engine } from 'express-handlebars';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { router } from './routes/index.js';
 import { connectMongo } from './config/db.js';
@@ -11,6 +12,12 @@ import { attachUser } from './middleware/auth.js';
 import { percent, eq, formatDate } from './lib/viewHelpers.js';
 
 const app = express();
+
+// Resolve asset directories against this file, not process.cwd(). Under a
+// serverless runtime the working directory is the bundle root (/var/task), which
+// is not where the source lives — relative paths silently look in the wrong place.
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+
 const MemoryStore = memorystore(session);
 
 const rewriteUnsupportedBrowserMethods = (req, res, next) => {
@@ -29,9 +36,9 @@ const rewriteUnsupportedBrowserMethods = (req, res, next) => {
 // View engine: Handlebars
 app.engine('handlebars', engine({ defaultLayout: 'main', helpers: { percent, eq, formatDate } }));
 app.set('view engine', 'handlebars');
-app.set('views', './views');
+app.set('views', path.join(rootDir, 'views'));
 
-app.use(express.static('public'));
+app.use(express.static(path.join(rootDir, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
