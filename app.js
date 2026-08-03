@@ -42,6 +42,18 @@ app.use(express.static(path.join(rootDir, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Ensure a database connection before anything downstream touches a model. Under
+// a serverless runtime nothing runs at "startup", so this is where connecting
+// actually happens; connectMongo() is cached, so warm requests just fall through.
+app.use(async (req, res, next) => {
+  try {
+    await connectMongo();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.use(
   session({
     name: 'AuthenticationState',
