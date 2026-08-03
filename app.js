@@ -55,6 +55,10 @@ app.use(router);
 
 export { app };
 
+// Vercel resolves this file as the function entrypoint (package.json "main") and
+// invokes the default export as (req, res). An Express app is already that shape.
+export default app;
+
 // Only connect to MongoDB and start listening when this file is run directly
 // (not when imported by a test). Fail fast if the database is unreachable.
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
