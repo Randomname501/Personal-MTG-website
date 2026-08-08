@@ -4,7 +4,7 @@
   <div class="deck-card">
     <p><strong>Date:</strong> {{formatDate record.createdAt}}</p>
     <p><strong>Deck:</strong> {{#if record.deck}}{{record.deck.name}}{{else}}&mdash;{{/if}}</p>
-    <p><strong>Opponent:</strong> {{record.opponentDeck}}</p>
+    <p><strong>Opponents:</strong> {{formatOpponents record.opponents}}</p>
     <p><strong>Result:</strong> {{record.result}}</p>
   </div>
   <div class="signout-buttons">

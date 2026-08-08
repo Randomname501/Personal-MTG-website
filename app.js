@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { router } from './routes/index.js';
 import { connectMongo } from './config/db.js';
 import { attachUser } from './middleware/auth.js';
-import { percent, eq, formatDate } from './lib/viewHelpers.js';
+import { percent, eq, formatDate, formatOpponents } from './lib/viewHelpers.js';
 
 const app = express();
 
@@ -71,7 +71,7 @@ const rewriteUnsupportedBrowserMethods = (req, res, next) => {
 };
 
 // View engine: Handlebars
-app.engine('handlebars', engine({ defaultLayout: 'main', helpers: { percent, eq, formatDate } }));
+app.engine('handlebars', engine({ defaultLayout: 'main', helpers: { percent, eq, formatDate, formatOpponents } }));
 app.set('view engine', 'handlebars');
 app.set('views', path.join(rootDir, 'views'));
 

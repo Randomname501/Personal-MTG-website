@@ -23,13 +23,30 @@ beforeEach(async () => {
   await Promise.all([User.deleteMany({}), Deck.deleteMany({}), GameRecord.deleteMany({})]);
 });
 
-// Seed one game. When createdAt is given, save with timestamps disabled so
-// Mongoose keeps our date instead of overwriting it with "now".
-const seedGame = async (deck, user, opponentDeck, result, createdAt) => {
-  const doc = new GameRecord({ user: user._id, deck: deck._id, opponentDeck, result });
+// Seed one game. `opponentDecks` is a deck name or a list of them; each gets a
+// generated opponent name, since these tests only care about the decks faced.
+// When createdAt is given, save with timestamps disabled so Mongoose keeps our
+// date instead of overwriting it with "now".
+const seedGame = async (deck, user, opponentDecks, result, createdAt) => {
+  const list = Array.isArray(opponentDecks) ? opponentDecks : [opponentDecks];
+  const opponents = list.map((d, i) => ({ name: `Opp${i + 1}`, deck: d }));
+  const doc = new GameRecord({ user: user._id, deck: deck._id, opponents, result });
   if (createdAt) doc.createdAt = createdAt;
   await doc.save({ timestamps: !createdAt });
   return doc;
+};
+
+// Seed a record in the pre-opponents shape, written straight to the collection
+// so the schema doesn't normalize it. This is what old rows actually look like.
+const seedLegacyGame = async (deck, user, opponentDeck, result, createdAt = new Date()) => {
+  await mongoose.connection.collection('gamerecords').insertOne({
+    user: user._id,
+    deck: deck._id,
+    opponentDeck,
+    result,
+    createdAt,
+    updatedAt: createdAt,
+  });
 };
 
 const makeUserAndDeck = async (deckName = 'Test Deck') => {
@@ -81,6 +98,56 @@ test('getDeckStats picks the most-frequent spelling for an uneven matchup split'
   assert.equal(stats.matchups.length, 1);
   assert.equal(stats.matchups[0].opponent, 'aggro'); // more frequent spelling (2 vs 1)
   assert.equal(stats.matchups[0].total, 3);
+});
+
+test('getDeckStats gives a multiplayer game one matchup row per opponent deck', async () => {
+  const { user, deck } = await makeUserAndDeck();
+  await seedGame(deck, user, ['Krenko', 'Yuriko', 'Edgar'], 'win');
+
+  const stats = await getDeckStats(deck._id);
+  // The game counts once...
+  assert.equal(stats.total, 1);
+  assert.equal(stats.wins, 1);
+  assert.equal(stats.winRate, 100);
+  // ...but each opponent deck faced gets its own row.
+  assert.equal(stats.matchups.length, 3);
+  assert.deepEqual(
+    stats.matchups.map((m) => m.opponent).sort(),
+    ['Edgar', 'Krenko', 'Yuriko']
+  );
+  for (const m of stats.matchups) {
+    assert.equal(m.wins, 1);
+    assert.equal(m.total, 1);
+    assert.equal(m.winRate, 100);
+  }
+});
+
+test('getDeckStats counts a repeated opponent deck once per game it appeared in', async () => {
+  const { user, deck } = await makeUserAndDeck();
+  await seedGame(deck, user, ['Krenko', 'Yuriko'], 'win');
+  await seedGame(deck, user, ['Krenko', 'Edgar'], 'loss');
+
+  const stats = await getDeckStats(deck._id);
+  assert.equal(stats.total, 2);
+  const krenko = stats.matchups.find((m) => m.opponent === 'Krenko');
+  assert.equal(krenko.total, 2);
+  assert.equal(krenko.wins, 1);
+  assert.equal(krenko.losses, 1);
+  assert.equal(krenko.winRate, 50);
+});
+
+test('getDeckStats still counts a legacy record with only opponentDeck', async () => {
+  const { user, deck } = await makeUserAndDeck();
+  await seedLegacyGame(deck, user, 'LegacyBurn', 'win');
+  await seedGame(deck, user, 'LegacyBurn', 'loss');
+
+  const stats = await getDeckStats(deck._id);
+  assert.equal(stats.total, 2);
+  assert.equal(stats.wins, 1);
+  // The legacy row groups with the new one under the same opponent deck.
+  assert.equal(stats.matchups.length, 1);
+  assert.equal(stats.matchups[0].opponent, 'LegacyBurn');
+  assert.equal(stats.matchups[0].total, 2);
 });
 
 test('getDeckStats buckets a weekly win-rate trend in chronological order', async () => {

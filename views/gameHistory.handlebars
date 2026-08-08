@@ -28,14 +28,14 @@
   {{#if games.length}}
     <table class="history-table">
       <thead>
-        <tr><th>Date</th><th>Deck</th><th>Opponent</th><th>Result</th><th>Actions</th></tr>
+        <tr><th>Date</th><th>Deck</th><th>Opponents</th><th>Result</th><th>Actions</th></tr>
       </thead>
       <tbody>
         {{#each games}}
           <tr>
             <td>{{formatDate this.createdAt}}</td>
             <td>{{#if this.deck}}{{this.deck.name}}{{else}}&mdash;{{/if}}</td>
-            <td>{{this.opponentDeck}}</td>
+            <td>{{formatOpponents this.opponents}}</td>
             <td class="result-{{this.result}}">{{this.result}}</td>
             <td class="row-actions">
               <a href="/game-records/{{this._id}}/edit">Edit</a>

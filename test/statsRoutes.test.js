@@ -56,9 +56,9 @@ before(async () => {
   await request('POST', '/register', { username_input: 'Stats', password_input: 'hunter2hunter' });
   await request('POST', '/decks', { name: 'Azorius Control', format: 'Modern', colors: ['W', 'U'] });
   const deck = await Deck.findOne({ name: 'Azorius Control' });
-  await request('POST', '/game-records', { deck_id: deck._id.toString(), opponent_deck: 'Burn', result: 'win' });
-  await request('POST', '/game-records', { deck_id: deck._id.toString(), opponent_deck: 'Burn', result: 'loss' });
-  await request('POST', '/game-records', { deck_id: deck._id.toString(), opponent_deck: 'Tron', result: 'win' });
+  await request('POST', '/game-records', { deck_id: deck._id.toString(), 'opponents[0][name]': 'Ana', 'opponents[0][deck]': 'Burn', result: 'win' });
+  await request('POST', '/game-records', { deck_id: deck._id.toString(), 'opponents[0][name]': 'Ana', 'opponents[0][deck]': 'Burn', result: 'loss' });
+  await request('POST', '/game-records', { deck_id: deck._id.toString(), 'opponents[0][name]': 'Ben', 'opponents[0][deck]': 'Tron', result: 'win' });
 });
 
 after(async () => {

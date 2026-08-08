@@ -1,5 +1,5 @@
 import express from 'express';
-import { Deck, User } from '../models/index.js';
+import { Deck, User, MAX_OPPONENTS } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getUserSummary } from '../lib/stats.js';
 
@@ -21,6 +21,9 @@ router.get('/dashboard', requireAuth, async (req, res, next) => {
       decks,
       trackedDecks: userWithTracked?.trackedDecks ?? [],
       summary,
+      maxOpponents: MAX_OPPONENTS,
+      // The quick-log form opens on a 1v1; the count input grows it from there.
+      blankOpponents: [{ name: '', deck: '' }],
     });
   } catch (err) {
     next(err);

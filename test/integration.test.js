@@ -96,7 +96,8 @@ test('logging a game updates the player leaderboard', async () => {
   const deck = await Deck.findOne({ name: 'Gruul Stompy' });
   const log = await request('POST', '/game-records', {
     deck_id: deck._id.toString(),
-    opponent_deck: 'Tron',
+    'opponents[0][name]': 'Ana',
+    'opponents[0][deck]': 'Tron',
     result: 'win',
   });
   assert.equal(log.status, 302);
@@ -104,8 +105,8 @@ test('logging a game updates the player leaderboard', async () => {
   const board = await request('GET', '/leaderboard');
   assert.equal(board.status, 200);
   assert.match(board.text, /Tester/);
-  // The row should show 1 win.
-  assert.match(board.text, /<td>1<\/td>/);
+  // The card should show 1 win.
+  assert.match(board.text, /<dt>W<\/dt><dd>1<\/dd>/);
 });
 
 test('wrong password re-renders login with an error', async () => {
