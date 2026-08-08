@@ -1011,3 +1011,220 @@ main:not(.landing) h2 {
   color: var(--ink-soft);
 }
 .deck-card form { margin-top: 0.7rem; }
+
+/* ============================================================
+   LEADERBOARDS
+   Both /leaderboard and /deckLeaderboard share every rule here.
+   ============================================================ */
+
+/* Wider than the site's --maxw rhythm on purpose: the grid is meant to run
+   the full width of the page. `main` carries no global max-width, so this
+   only affects the two leaderboard pages. */
+.leaderboard-page {
+  width: min(100% - 3rem, 1800px);
+  margin-inline: auto;
+  padding-block: 2rem 3.5rem;
+}
+
+.leaderboard-head { margin-bottom: 2rem; }
+.leaderboard-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.35rem;
+}
+.leaderboard-title {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
+  line-height: 1.1;
+  margin-bottom: 0.4rem;
+}
+.leaderboard-lead { color: var(--ink-soft); font-size: 0.97rem; }
+
+.leaderboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.leader-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1.4rem 1.2rem;
+  background: #fbf8ef;
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.leader-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 38px -18px rgba(36, 31, 43, 0.6);
+}
+
+/* Rank badge, tucked into the card's top-right corner. */
+.leader-card__rank {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.9rem;
+  display: grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding-inline: 0.4rem;
+  border-radius: 999px;
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.leader-card__name {
+  font-family: 'Cinzel', serif;
+  font-size: 1.12rem;
+  line-height: 1.25;
+  /* keep clear of the rank badge */
+  padding-right: 2.6rem;
+  margin-bottom: 0.15rem;
+  overflow-wrap: anywhere;
+}
+.leader-card__sub {
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.2rem;
+}
+
+.leader-card__ratio {
+  font-family: 'Cinzel', serif;
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 0.9rem;
+}
+.leader-card__ratio-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.9rem;
+}
+
+/* Win share, so relative strength reads without comparing digits card to card.
+   The track is the loss colour; the fill is the win colour. */
+.leader-card__meter {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mana-r) 30%, var(--paper-deep));
+  overflow: hidden;
+  margin-top: auto;
+}
+.leader-card__meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--mana-g);
+}
+
+.leader-card__record {
+  display: flex;
+  gap: 1.4rem;
+  margin-top: 0.8rem;
+}
+.leader-card__record div { display: flex; align-items: baseline; gap: 0.35rem; }
+.leader-card__record dt {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+.leader-card__record dd {
+  font-family: 'Cinzel', serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* --- Medal treatment for the top three --- */
+.leader-card--gold   { border-top-color: var(--gold-bright); }
+.leader-card--silver { border-top-color: #9aa0a6; }
+.leader-card--bronze { border-top-color: #b07a4a; }
+
+.leader-card--gold .leader-card__rank {
+  background: radial-gradient(circle at 35% 30%, #fff7e0, var(--gold) 75%, #6f561f);
+  border-color: var(--gold);
+  color: #3a2c0c;
+}
+.leader-card--silver .leader-card__rank {
+  background: radial-gradient(circle at 35% 30%, #ffffff, #b9bec4 75%, #6d7378);
+  border-color: #9aa0a6;
+  color: var(--ink);
+}
+.leader-card--bronze .leader-card__rank {
+  background: radial-gradient(circle at 35% 30%, #f3d6bd, #b07a4a 75%, #6d4523);
+  border-color: #b07a4a;
+  color: #3a2410;
+}
+
+/* The leaders earn a slightly larger ratio figure. */
+.leader-card--gold .leader-card__ratio   { font-size: 2.5rem; }
+.leader-card--silver .leader-card__ratio,
+.leader-card--bronze .leader-card__ratio { font-size: 2.3rem; }
+
+.leaderboard-empty {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--ink-soft);
+  background: var(--paper-deep);
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leader-card { transition: none; }
+  .leader-card:hover { transform: none; }
+}
+
+/* ============================================================
+   OPPONENT FIELDSETS  (quick-log form and edit form)
+   ============================================================ */
+.opponent-fields { margin-bottom: 1rem; }
+.opponent-count { max-width: 6rem; }
+
+/* Row numbers come from a counter so rows added or removed by
+   opponent-fields.js renumber themselves with no JS bookkeeping. */
+.opponent-list { counter-reset: opponent; }
+
+.opponent-row {
+  counter-increment: opponent;
+  margin-bottom: 0.9rem;
+  padding: 0.9rem 1.1rem 0.4rem;
+  background: #fbf8ef;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--mana-r);
+  border-radius: 6px;
+}
+.opponent-row legend {
+  padding-inline: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.opponent-row legend::after { content: " " counter(opponent); }
+
+.matchup-note {
+  margin-bottom: 0.8rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}

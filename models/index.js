@@ -3,4 +3,4 @@
 // refs being resolvable.
 export { User } from './User.js';
 export { Deck, DECK_FORMATS, MTG_COLORS } from './Deck.js';
-export { GameRecord, GAME_RESULTS } from './GameRecord.js';
+export { GameRecord, GAME_RESULTS, MAX_OPPONENTS, opponentList } from './GameRecord.js';

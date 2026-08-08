@@ -1,27 +1,34 @@
-<main>
-    <title>Deck Leaderboard</title>
-    <h1>Deck Leaderboard</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Rank |</th>
-                <th>Deck Name |</th>
-                <th>Owner |</th>
-                <th>Wins |</th>
-                <th>Losses |</th>
-                <th>Win/Loss Ratio</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{#each leaderboard}}
-            <tr>
-                <td>{{rank}}</td>
-                <td>{{deckName}}</td>
-                <td>{{owner}}</td>
-                <td>{{wins}}</td>
-                <td>{{losses}}</td>
-                <td>{{winLossRatio}}</td>
-            </tr>
-            {{/each}}
-        </tbody>
+<main class="leaderboard-page">
+  <header class="leaderboard-head">
+    <p class="leaderboard-eyebrow">Standings</p>
+    <h1 class="leaderboard-title">Deck Leaderboard</h1>
+    <p class="leaderboard-lead">Every registered deck, ranked by wins &mdash; ties broken by win/loss ratio.</p>
+  </header>
+
+  {{#if leaderboard.length}}
+    <ol class="leaderboard-grid">
+      {{#each leaderboard}}
+        <li class="leader-card{{#if this.tier}} leader-card--{{this.tier}}{{/if}}">
+          <span class="leader-card__rank">{{this.rank}}</span>
+          <h2 class="leader-card__name">{{this.deckName}}</h2>
+          <p class="leader-card__sub">{{this.owner}}</p>
+
+          <p class="leader-card__ratio">{{this.winLossRatio}}</p>
+          <p class="leader-card__ratio-label">Win / Loss</p>
+
+          <div class="leader-card__meter" role="img"
+               aria-label="{{percent this.wins this.total}}% of {{this.total}} games won">
+            <span class="leader-card__meter-fill" style="width: {{percent this.wins this.total}}%"></span>
+          </div>
+
+          <dl class="leader-card__record">
+            <div><dt>W</dt><dd>{{this.wins}}</dd></div>
+            <div><dt>L</dt><dd>{{this.losses}}</dd></div>
+          </dl>
+        </li>
+      {{/each}}
+    </ol>
+  {{else}}
+    <p class="leaderboard-empty">No games have been logged yet.</p>
+  {{/if}}
 </main>

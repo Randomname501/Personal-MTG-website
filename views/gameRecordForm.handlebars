@@ -13,10 +13,7 @@
         {{/each}}
       </select>
     </div>
-    <div class="form-group">
-      <label for="opponent_deck">Opponent's Deck</label>
-      <input type="text" name="opponent_deck" id="opponent_deck" required value="{{values.opponentDeck}}" />
-    </div>
+    {{> opponentFields opponents=values.opponents maxOpponents=maxOpponents}}
     <div class="form-group">
       <label for="result">Result</label>
       <select name="result" id="result" required>

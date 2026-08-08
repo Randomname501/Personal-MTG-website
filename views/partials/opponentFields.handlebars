@@ -1,0 +1,46 @@
+{{!--
+  Opponent fieldsets, shared by the dashboard quick-log form and the edit form.
+  The server always renders the correct number of rows, so the form still works
+  with JavaScript disabled; opponent-fields.js only makes the count input live.
+  Row numbering is a CSS counter, so added/removed rows renumber themselves.
+--}}
+<div class="opponent-fields" data-max="{{maxOpponents}}">
+  <div class="form-group">
+    <label for="opponent_count">How many opponents?</label>
+    <input type="number" id="opponent_count" class="opponent-count"
+           min="1" max="{{maxOpponents}}" value="{{opponents.length}}" />
+  </div>
+
+  <div class="opponent-list">
+    {{#each opponents}}
+      <fieldset class="opponent-row">
+        <legend>Opponent</legend>
+        <div class="form-group">
+          <label for="opponent_name_{{@index}}">Name</label>
+          <input type="text" id="opponent_name_{{@index}}"
+                 name="opponents[{{@index}}][name]" value="{{this.name}}" required />
+        </div>
+        <div class="form-group">
+          <label for="opponent_deck_{{@index}}">Deck</label>
+          <input type="text" id="opponent_deck_{{@index}}"
+                 name="opponents[{{@index}}][deck]" value="{{this.deck}}" required />
+        </div>
+      </fieldset>
+    {{/each}}
+  </div>
+
+  {{!-- Cloned by opponent-fields.js; __i__ is replaced with the new row index. --}}
+  <template class="opponent-template">
+    <fieldset class="opponent-row">
+      <legend>Opponent</legend>
+      <div class="form-group">
+        <label for="opponent_name___i__">Name</label>
+        <input type="text" id="opponent_name___i__" name="opponents[__i__][name]" required />
+      </div>
+      <div class="form-group">
+        <label for="opponent_deck___i__">Deck</label>
+        <input type="text" id="opponent_deck___i__" name="opponents[__i__][deck]" required />
+      </div>
+    </fieldset>
+  </template>
+</div>
