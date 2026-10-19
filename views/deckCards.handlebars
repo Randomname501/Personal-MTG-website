@@ -7,6 +7,25 @@
     <button type="submit" class="submit-button">Search</button>
   </form>
 
+  <details class="deck-import"{{#if importResult}} open{{/if}}>
+    <summary>Import decklist</summary>
+    <p>Paste a Moxfield or Archidekt text export (Export &rarr; copy as text). This <strong>replaces</strong> the deck's current cards.</p>
+    {{#if importResult}}
+      <div class="import-result" role="status">
+        <p>{{importResult.message}}</p>
+        {{#if importResult.notFound.length}}
+          <p>Not found:</p>
+          <ul>{{#each importResult.notFound}}<li>{{this}}</li>{{/each}}</ul>
+        {{/if}}
+      </div>
+    {{/if}}
+    <form action="/decks/{{deck._id}}/import" method="POST">
+      <label for="decklist">Decklist</label>
+      <textarea name="decklist" id="decklist" rows="10" class="form-input" placeholder="1 Sol Ring&#10;1 Command Tower">{{importText}}</textarea>
+      <button type="submit" class="submit-button">Import</button>
+    </form>
+  </details>
+
   {{#if searched}}
     <section class="card-results">
       <h2>Results</h2>
