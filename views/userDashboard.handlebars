@@ -15,35 +15,53 @@
     </section>
   {{/if}}
 
-<h2>My Decks</h2>
-  <p><a href="/decks/new" class="button">+ New Deck</a></p>
-  <section class="active-decks">
-    {{#each decks}}
-      <div class="deck-card">
-        <h3><a href="/decks/{{this._id}}">{{this.name}}</a></h3>
-        <p>Format: {{this.format}}</p>
-        <p>Created on: {{this.createdAt}}</p>
-        <a href="/decks/{{this._id}}" class="view-deck-button">View stats</a>
-      </div>
-    {{else}}
-      <p>You haven't added any decks yet.</p>
-    {{/each}}
-<h2>Tracked Decks</h2>
-    {{#each trackedDecks}}
-      <div class="deck-card">
-        <h3><a href="/decks/{{this._id}}">{{this.name}}</a></h3>
-        <p>Format: {{this.format}}</p>
-        <p>Created on: {{this.createdAt}}</p>
-        <form action="/decks/{{this._id}}/untrack" method="POST" style="display:inline">
-          <input type="hidden" name="back" value="/dashboard" />
-          <button type="submit" class="button cancel-button">Untrack</button>
-        </form>
-      </div>
-    {{else}}
-      <p>You aren't tracking any decks yet.</p>
-    {{/each}}
-<h2>Enter Game Records</h2>
-    <p><a href="/game-records">View match history</a></p>
+<section class="deck-section">
+    <div class="deck-section__head">
+      <h2>My Decks</h2>
+      <a href="/decks/new" class="button">+ New Deck</a>
+    </div>
+    <div class="deck-grid">
+      {{#each decks}}
+        <div class="deck-card">
+          {{#if this.commanderImageUrl}}
+            <img class="deck-card__commander" src="{{this.commanderImageUrl}}" alt="{{this.commander}}" />
+          {{/if}}
+          <h3><a href="/decks/{{this._id}}">{{this.name}}</a></h3>
+          <p>Format: {{this.format}}</p>
+          <a href="/decks/{{this._id}}" class="view-deck-button">View stats</a>
+        </div>
+      {{else}}
+        <p>You haven't added any decks yet.</p>
+      {{/each}}
+    </div>
+  </section>
+
+  <section class="deck-section">
+    <h2>Tracked Decks</h2>
+    <div class="deck-grid">
+      {{#each trackedDecks}}
+        <div class="deck-card">
+          {{#if this.commanderImageUrl}}
+            <img class="deck-card__commander" src="{{this.commanderImageUrl}}" alt="{{this.commander}}" />
+          {{/if}}
+          <h3><a href="/decks/{{this._id}}">{{this.name}}</a></h3>
+          <p>Format: {{this.format}}</p>
+          <form action="/decks/{{this._id}}/untrack" method="POST">
+            <input type="hidden" name="back" value="/dashboard" />
+            <button type="submit" class="button cancel-button">Untrack</button>
+          </form>
+        </div>
+      {{else}}
+        <p>You aren't tracking any decks yet.</p>
+      {{/each}}
+    </div>
+  </section>
+
+  <section class="deck-section">
+    <div class="deck-section__head">
+      <h2>Enter Game Records</h2>
+      <a href="/game-records">View match history</a>
+    </div>
     {{#if decks.length}}
     <form action="/game-records" method="POST" class="game-record-form">
       <div class="form-group">

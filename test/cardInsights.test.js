@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getCardInsights } from '../lib/cardInsights.js';
+import { getCardInsights, groupCardsByType } from '../lib/cardInsights.js';
 
 // Minimal card with sensible defaults; override per case.
 const card = (over) => ({ quantity: 1, cmc: 0, colors: [], typeLine: '', ...over });
@@ -103,4 +103,19 @@ test('pct scales each group to its own max, with no divide-by-zero on empty buck
   assert.equal(pctByBucket['1'], 100); // max bucket
   assert.equal(pctByBucket['2'], 50);
   assert.equal(pctByBucket['0'], 0); // empty bucket, no NaN
+});
+
+test('groupCardsByType orders groups (lands last) and sorts by cmc then name', () => {
+  const g = groupCardsByType([
+    card({ name: 'Island', typeLine: 'Basic Land — Island', quantity: 30 }),
+    card({ name: 'Zebra', typeLine: 'Creature — Zebra', cmc: 2 }),
+    card({ name: 'Ape', typeLine: 'Creature — Ape', cmc: 2, quantity: 2 }),
+    card({ name: 'Elf', typeLine: 'Creature — Elf', cmc: 1 }),
+    card({ name: 'Bolt', typeLine: 'Instant', cmc: 1 }),
+  ]);
+  assert.deepEqual(g.map((x) => x.type), ['Creatures', 'Instants', 'Lands']);
+  assert.deepEqual(g[0].cards.map((c) => c.name), ['Elf', 'Ape', 'Zebra']);
+  assert.equal(g[0].count, 4);
+  assert.equal(g[2].count, 30);
+  assert.deepEqual(groupCardsByType(undefined), []);
 });

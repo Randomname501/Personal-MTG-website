@@ -3,8 +3,8 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
-import { getCardInsights } from '../lib/cardInsights.js';
-import { searchCards, getCardById } from '../lib/scryfall.js';
+import { getCardInsights, groupCardsByType } from '../lib/cardInsights.js';
+import { searchCards, getCardById, getCardByName } from '../lib/scryfall.js';
 
 const router = express.Router();
 
@@ -68,13 +68,20 @@ router.post('/decks', requireAuth, async (req, res, next) => {
   if (!Array.isArray(colors)) colors = [colors];
   colors = colors.filter((c) => MTG_COLORS.includes(c));
 
+  const commanderName = (commander || '').trim();
+
   try {
+    // Best-effort: an unrecognized or misspelled commander name just means no
+    // image, not a failed deck creation.
+    const commanderCard = commanderName ? await getCardByName(commanderName).catch(() => null) : null;
+
     await Deck.create({
       name: (name || '').trim(),
       format,
       owner: req.currentUser._id,
       colors,
-      commander: (commander || '').trim() || undefined,
+      commander: commanderName || undefined,
+      commanderImageUrl: commanderCard?.imageUrl || '',
       archetype: (archetype || '').trim() || undefined,
       description: (description || '').trim() || undefined,
     });
@@ -108,7 +115,8 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const isTracked = (req.currentUser.trackedDecks || []).some((t) => t.toString() === deck._id.toString());
     const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0);
     const insights = getCardInsights(deck.cards || []);
-    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights });
+    const cardGroups = groupCardsByType(deck.cards || []);
+    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights, cardGroups });
   } catch (err) {
     next(err);
   }

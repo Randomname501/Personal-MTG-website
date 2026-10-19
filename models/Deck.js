@@ -59,6 +59,11 @@ const deckSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Scryfall image for the commander, fetched by name when the deck is created.
+    commanderImageUrl: {
+      type: String,
+      default: '',
+    },
     archetype: {
       type: String,
       trim: true,

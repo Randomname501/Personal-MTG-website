@@ -1,39 +1,55 @@
 <main>
   <p><a href="/dashboard">&larr; Back to dashboard</a></p>
-  <h1>{{deck.name}}</h1>
-  <p class="deck-meta">
-    {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}{{#if deck.colors.length}} &middot; {{#each deck.colors}}{{this}} {{/each}}{{/if}}
-  </p>
+  <header class="deck-hero">
+    {{#if deck.commanderImageUrl}}
+      <img class="deck-hero__commander" src="{{deck.commanderImageUrl}}" alt="{{deck.commander}}" />
+    {{/if}}
+    <div class="deck-hero__info">
+      <h1>{{deck.name}}</h1>
+      <p class="deck-meta">
+        {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}{{#if deck.colors.length}} &middot; {{#each deck.colors}}{{this}} {{/each}}{{/if}}
+      </p>
+      {{#if deck.description}}<p class="deck-hero__desc">{{deck.description}}</p>{{/if}}
+      <div class="deck-hero__actions">
+        {{#if isOwner}}
+          <a href="/decks/{{deck._id}}/cards" class="button">Manage Cards</a>
+        {{else}}
+          {{#if isTracked}}
+            <form action="/decks/{{deck._id}}/untrack" method="POST" style="display:inline">
+              <input type="hidden" name="back" value="/decks/{{deck._id}}" />
+              <button type="submit" class="button cancel-button">Untrack</button>
+            </form>
+          {{else}}
+            <form action="/decks/{{deck._id}}/track" method="POST" style="display:inline">
+              <input type="hidden" name="back" value="/decks/{{deck._id}}" />
+              <button type="submit" class="button">Track</button>
+            </form>
+          {{/if}}
+        {{/if}}
+      </div>
+    </div>
+  </header>
 
   <section class="deck-cards-view">
-    <div class="deck-cards-view__head">
-      <h2>Cards ({{cardCount}})</h2>
-      {{#if isOwner}}
-        <a href="/decks/{{deck._id}}/cards" class="button">Manage Cards</a>
-      {{else}}
-        {{#if isTracked}}
-          <form action="/decks/{{deck._id}}/untrack" method="POST" style="display:inline">
-            <input type="hidden" name="back" value="/decks/{{deck._id}}" />
-            <button type="submit" class="button cancel-button">Untrack</button>
-          </form>
-        {{else}}
-          <form action="/decks/{{deck._id}}/track" method="POST" style="display:inline">
-            <input type="hidden" name="back" value="/decks/{{deck._id}}" />
-            <button type="submit" class="button">Track</button>
-          </form>
-        {{/if}}
-      {{/if}}
-    </div>
-    {{#if deck.cards.length}}
-      <ul class="cardlist">
-        {{#each deck.cards}}
-          <li>
-            <span class="cardlist__qty">{{this.quantity}}&times;</span>
-            <span class="cardlist__name">{{this.name}}</span>
-            <span class="cardlist__meta">{{this.manaCost}} &middot; {{this.typeLine}}</span>
-          </li>
+    <h2>Cards ({{cardCount}})</h2>
+    {{#if cardGroups.length}}
+      <div class="decklist">
+        {{#each cardGroups}}
+          <div class="decklist__group">
+            <h3>{{this.type}} <span>({{this.count}})</span></h3>
+            <ul class="cardlist">
+              {{#each this.cards}}
+                <li tabindex="0">
+                  <span class="cardlist__qty">{{this.quantity}}</span>
+                  <span class="cardlist__name">{{this.name}}</span>
+                  <span class="cardlist__meta">{{this.manaCost}}</span>
+                  {{#if this.imageUrl}}<img class="cardlist__preview" src="{{this.imageUrl}}" alt="" loading="lazy" />{{/if}}
+                </li>
+              {{/each}}
+            </ul>
+          </div>
         {{/each}}
-      </ul>
+      </div>
     {{else}}
       <p>No cards in this deck yet.{{#if isOwner}} <a href="/decks/{{deck._id}}/cards">Add some</a>.{{/if}}</p>
     {{/if}}
