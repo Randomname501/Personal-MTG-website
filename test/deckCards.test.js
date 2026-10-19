@@ -336,4 +336,46 @@ test('a commander name on a non-Commander deck adds no Commander group or count'
   assert.doesNotMatch(res.text, /<h3>Commander/);
 });
 
+test('Set as commander overwrites name and art from the re-fetched card, keeping q', async () => {
+  const max = makeClient();
+  await max.request('POST', '/register', { username_input: 'Max', password_input: 'hunter2hunter' });
+  await max.request('POST', '/decks', { name: 'MaxsCmdr', format: 'Commander', commander: 'nomatchxyz' });
+  const deck = await Deck.findOne({ name: 'MaxsCmdr' });
+
+  const page = await max.request('GET', `/decks/${deck._id}/cards?q=counterspell`);
+  assert.match(page.text, /Set as commander/);
+
+  const res = await max.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1', q: 'a&b c' });
+  assert.equal(res.status, 302);
+  assert.equal(res.location, `/decks/${deck._id}/cards?q=a%26b%20c`);
+
+  const updated = await Deck.findOne({ name: 'MaxsCmdr' });
+  assert.equal(updated.commander, "Atraxa, Praetors' Voice");
+  assert.equal(updated.commanderImageUrl, 'http://img/atraxa.jpg');
+  assert.equal(updated.cards.length, 0); // commander is not added to the card list
+
+  const managerPage = await max.request('GET', `/decks/${deck._id}/cards`);
+  assert.match(managerPage.text, /class="current-commander"/);
+});
+
+test('Set as commander is refused for non-owners, non-Commander decks, and empty ids', async () => {
+  const deck = await aliceDeck(); // Alice's Modern deck
+  const nia = makeClient();
+  await nia.request('POST', '/register', { username_input: 'Nia', password_input: 'hunter2hunter' });
+  const denied = await nia.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1' });
+  assert.equal(denied.status, 404);
+
+  const page = await alice.request('GET', `/decks/${deck._id}/cards?q=counterspell`);
+  assert.doesNotMatch(page.text, /Set as commander/);
+  const modern = await alice.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1' });
+  assert.equal(modern.status, 302);
+  assert.equal((await aliceDeck()).commanderImageUrl, '');
+
+  await nia.request('POST', '/decks', { name: 'NiasCmdr', format: 'Commander' });
+  const own = await Deck.findOne({ name: 'NiasCmdr' });
+  const empty = await nia.request('POST', `/decks/${own._id}/commander`, { scryfall_id: '' });
+  assert.equal(empty.status, 302);
+  assert.equal((await Deck.findOne({ name: 'NiasCmdr' })).commander, undefined);
+});
+
 export { makeClient, aliceDeck };

@@ -145,6 +145,7 @@ router.get('/decks/:id/cards', requireAuth, async (req, res, next) => {
       searched,
       results,
       cardGroups: groupCards(deck.toObject().cards),
+      isCommanderDeck: deck.format === 'Commander',
     });
   } catch (err) {
     next(err);
@@ -189,6 +190,28 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
       await deck.save();
     }
     res.redirect(`/decks/${deck._id}/cards`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/decks/:id/commander', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+
+    const scryfallId = (req.body.scryfall_id || '').trim();
+    const q = (req.body.q || '').trim();
+    const back = q ? `/decks/${deck._id}/cards?q=${encodeURIComponent(q)}` : `/decks/${deck._id}/cards`;
+    if (deck.format !== 'Commander' || !scryfallId) return res.redirect(back);
+
+    // Re-fetch for the canonical name and art; never trust client-posted card fields.
+    const card = await getCardById(scryfallId);
+    deck.commander = card.name;
+    deck.commanderImageUrl = card.imageUrl;
+    await deck.save();
+
+    res.redirect(back);
   } catch (err) {
     next(err);
   }
