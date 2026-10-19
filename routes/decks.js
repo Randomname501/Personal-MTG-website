@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
-import { getCardInsights, groupCardsByType } from '../lib/cardInsights.js';
+import { getCardInsights, groupCards } from '../lib/cardInsights.js';
 import { searchCards, getCardById, getCardByName } from '../lib/scryfall.js';
 
 const router = express.Router();
@@ -115,7 +115,7 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const isTracked = (req.currentUser.trackedDecks || []).some((t) => t.toString() === deck._id.toString());
     const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0);
     const insights = getCardInsights(deck.cards || []);
-    const cardGroups = groupCardsByType(deck.cards || []);
+    const cardGroups = groupCards(deck.cards);
     res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights, cardGroups });
   } catch (err) {
     next(err);
