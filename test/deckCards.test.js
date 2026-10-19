@@ -291,4 +291,13 @@ test('an unmatched or erroring commander lookup still creates the deck, without 
   }
 });
 
+test('manager lists deck cards grouped by type with a Remove button per card', async () => {
+  const deck = await aliceDeck(); // holds Counterspell (Instant) from earlier tests
+  const res = await alice.request('GET', `/decks/${deck._id}/cards`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /class="decklist"/);
+  assert.match(res.text, /Instants <span>\(2\)<\/span>/);
+  assert.match(res.text, new RegExp(`action="/decks/${deck._id}/cards/abc-123/remove"`));
+});
+
 export { makeClient, aliceDeck };

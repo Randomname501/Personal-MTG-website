@@ -137,6 +137,7 @@ router.get('/decks/:id/cards', requireAuth, async (req, res, next) => {
       query,
       searched,
       results,
+      cardGroups: groupCards(deck.toObject().cards),
     });
   } catch (err) {
     next(err);

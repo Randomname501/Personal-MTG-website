@@ -1,0 +1,22 @@
+<div class="decklist">
+  {{#each groups}}
+    <div class="decklist__group">
+      <h3>{{this.label}} <span>({{this.count}})</span></h3>
+      <ul class="cardlist">
+        {{#each this.cards}}
+          <li tabindex="0">
+            <span class="cardlist__qty">{{this.quantity}}</span>
+            <span class="cardlist__name">{{this.name}}</span>
+            <span class="cardlist__meta">{{this.manaCost}}</span>
+            {{#if this.imageUrl}}<img class="cardlist__preview" src="{{this.imageUrl}}" alt="" loading="lazy" />{{/if}}
+            {{#if ../../editable}}{{#if this.scryfallId}}
+              <form action="/decks/{{../../deckId}}/cards/{{this.scryfallId}}/remove" method="POST">
+                <button type="submit" class="button cancel-button">Remove</button>
+              </form>
+            {{/if}}{{/if}}
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+  {{/each}}
+</div>
