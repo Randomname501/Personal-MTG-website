@@ -1004,6 +1004,8 @@ main:not(.landing) h2 {
   pointer-events: none;
 }
 .cardlist li:hover .cardlist__preview, .cardlist li:focus .cardlist__preview { display: block; }
+.group-toggle { color: var(--ink-soft); font-size: 0.9rem; margin: 0; }
+.group-toggle a[aria-current="true"] { font-weight: 700; text-decoration: none; color: inherit; }
 @media (max-width: 520px) {
   .deck-hero { flex-direction: column; }
   .deck-hero__commander { max-width: 60%; }

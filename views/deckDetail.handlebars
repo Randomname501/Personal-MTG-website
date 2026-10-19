@@ -31,12 +31,19 @@
   </header>
 
   <section class="deck-cards-view">
-    <h2>Cards ({{cardCount}})</h2>
+    <div class="deck-cards-view__head">
+      <h2>Cards ({{cardCount}})</h2>
+      <p class="group-toggle">Group by:
+        <a href="?group=type"{{#if (eq groupMode "type")}} aria-current="true"{{/if}}>Type</a> &middot;
+        <a href="?group=cmc"{{#if (eq groupMode "cmc")}} aria-current="true"{{/if}}>Mana value</a>
+      </p>
+    </div>
     {{#if cardGroups.length}}
       {{> decklist groups=cardGroups}}
-    {{else}}
-      <p>No cards in this deck yet.{{#if isOwner}} <a href="/decks/{{deck._id}}/cards">Add some</a>.{{/if}}</p>
     {{/if}}
+    {{#unless deck.cards.length}}
+      <p>No cards in this deck yet.{{#if isOwner}} <a href="/decks/{{deck._id}}/cards">Add some</a>.{{/if}}</p>
+    {{/unless}}
   </section>
 
   <section class="deck-stats">

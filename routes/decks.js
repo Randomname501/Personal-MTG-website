@@ -113,10 +113,17 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const stats = await getDeckStats(deck._id);
     const isOwner = req.currentUser._id.toString() === deck.owner.toString();
     const isTracked = (req.currentUser.trackedDecks || []).some((t) => t.toString() === deck._id.toString());
-    const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0);
+    // The commander lives outside deck.cards; it joins the list (and the count)
+    // only on Commander-format decks.
+    const hasCommander = deck.format === 'Commander' && Boolean(deck.commander);
+    const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0) + (hasCommander ? 1 : 0);
     const insights = getCardInsights(deck.cards || []);
-    const cardGroups = groupCards(deck.cards);
-    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights, cardGroups });
+    const groupMode = ['type', 'cmc'].includes(req.query.group) ? req.query.group : 'type';
+    const cardGroups = groupCards(deck.cards, {
+      mode: groupMode,
+      commander: hasCommander ? { name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
+    });
+    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode });
   } catch (err) {
     next(err);
   }

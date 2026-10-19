@@ -300,4 +300,40 @@ test('manager lists deck cards grouped by type with a Remove button per card', a
   assert.match(res.text, new RegExp(`action="/decks/${deck._id}/cards/abc-123/remove"`));
 });
 
+test('deck detail groups by mana value with ?group=cmc and falls back to type otherwise', async () => {
+  const deck = await aliceDeck(); // Counterspell, cmc 2
+  const cmc = await alice.request('GET', `/decks/${deck._id}?group=cmc`);
+  assert.match(cmc.text, /<h3>2 <span>\(2\)<\/span><\/h3>/);
+  assert.match(cmc.text, /href="\?group=cmc"[^>]*aria-current="true"/);
+
+  for (const qs of ['?group=color', '?group=cmc&group=type', '']) {
+    const res = await alice.request('GET', `/decks/${deck._id}${qs}`);
+    assert.equal(res.status, 200, qs);
+    assert.match(res.text, /<h3>Instants <span>\(2\)<\/span><\/h3>/, qs);
+    assert.match(res.text, /href="\?group=type"[^>]*aria-current="true"/, qs);
+  }
+});
+
+test('a Commander deck with a commander and no cards shows a Commander group and Cards (1)', async () => {
+  const kim = makeClient();
+  await kim.request('POST', '/register', { username_input: 'Kim', password_input: 'hunter2hunter' });
+  await kim.request('POST', '/decks', { name: 'KimsAtraxa', format: 'Commander', commander: 'atraxa' });
+  const deck = await Deck.findOne({ name: 'KimsAtraxa' });
+  const res = await kim.request('GET', `/decks/${deck._id}`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Cards \(1\)/);
+  assert.match(res.text, /<h3>Commander <span>\(1\)<\/span><\/h3>/);
+  assert.match(res.text, /Add some/); // owner hint still shown: deck.cards is empty
+});
+
+test('a commander name on a non-Commander deck adds no Commander group or count', async () => {
+  const lee = makeClient();
+  await lee.request('POST', '/register', { username_input: 'Lee', password_input: 'hunter2hunter' });
+  await lee.request('POST', '/decks', { name: 'LeesModern', format: 'Modern', commander: 'atraxa' });
+  const deck = await Deck.findOne({ name: 'LeesModern' });
+  const res = await lee.request('GET', `/decks/${deck._id}`);
+  assert.match(res.text, /Cards \(0\)/);
+  assert.doesNotMatch(res.text, /<h3>Commander/);
+});
+
 export { makeClient, aliceDeck };
