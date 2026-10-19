@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { percent, eq, formatDate, formatOpponents } from '../lib/viewHelpers.js';
+
+const { percent, eq, formatDate, formatOpponents } = await import('../lib/viewHelpers.js');
 
 test('percent is integer part-of-whole, 0 when whole is 0', () => {
   assert.equal(percent(1, 4), 25);
