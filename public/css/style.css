@@ -990,7 +990,8 @@ main:not(.landing) h2 {
 .decklist__group h3 span { color: var(--ink-soft); font-weight: 400; }
 .decklist .cardlist li { position: relative; padding: 0.3rem 0.2rem; font-size: 0.92rem; }
 .decklist .cardlist__qty { min-width: 1.4rem; }
-.decklist .cardlist li:hover, .decklist .cardlist li:focus { background: rgba(31, 92, 153, 0.08); outline: none; }
+.decklist .cardlist li:hover, .decklist .cardlist li:focus-within { background: rgba(31, 92, 153, 0.08); }
+.decklist .cardlist li:focus-visible { outline: 2px solid var(--mana-u); outline-offset: 1px; }
 .cardlist__preview {
   display: none;
   position: absolute;
@@ -1003,7 +1004,7 @@ main:not(.landing) h2 {
   z-index: 10;
   pointer-events: none;
 }
-.cardlist li:hover .cardlist__preview, .cardlist li:focus .cardlist__preview { display: block; }
+.cardlist li:hover .cardlist__preview, .cardlist li:focus-within .cardlist__preview { display: block; }
 .group-toggle { color: var(--ink-soft); font-size: 0.9rem; margin: 0; }
 .group-toggle a[aria-current="true"] { font-weight: 700; text-decoration: none; color: inherit; }
 .current-commander { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }

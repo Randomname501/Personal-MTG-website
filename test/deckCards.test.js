@@ -68,6 +68,7 @@ const aliceDeck = () => Deck.findOne({ name: 'Azorius' });
 
 before(async () => {
   process.env.MONGODB_URI = 'mongodb://localhost:27017/mtg_tracker_cards_test';
+  process.env.SCRYFALL_TIMEOUT_MS = '200';
   await connectMongo();
   await mongoose.connection.dropDatabase();
 
@@ -82,6 +83,7 @@ before(async () => {
     if (u.pathname === '/cards/named') {
       const fuzzy = u.searchParams.get('fuzzy');
       if (fuzzy === 'atraxa') return res.end(JSON.stringify(ATRAXA));
+      if (fuzzy === 'hang') return; // never respond
       if (fuzzy === 'explode') { res.statusCode = 500; return res.end(JSON.stringify({ object: 'error' })); }
       res.statusCode = 404;
       return res.end(JSON.stringify({ object: 'error' }));
@@ -114,6 +116,7 @@ after(async () => {
   await mongoose.connection.dropDatabase();
   await mongoose.disconnect();
   await new Promise((resolve) => server.close(resolve));
+  scryfall.closeAllConnections();
   await new Promise((resolve) => scryfall.close(resolve));
 });
 
@@ -215,6 +218,7 @@ test('deck detail shows the card list and a Manage Cards button for the owner', 
   assert.equal(res.status, 200);
   assert.match(res.text, /Counterspell/);
   assert.match(res.text, /Manage Cards/);
+  assert.match(res.text, /<li tabindex="0">/);
 });
 
 test('deck detail shows the card list but no Manage button to a non-owner', async () => {
@@ -298,6 +302,7 @@ test('manager lists deck cards grouped by type with a Remove button per card', a
   assert.match(res.text, /class="decklist"/);
   assert.match(res.text, /Instants <span>\(2\)<\/span>/);
   assert.match(res.text, new RegExp(`action="/decks/${deck._id}/cards/abc-123/remove"`));
+  assert.doesNotMatch(res.text, /tabindex="0"/);
 });
 
 test('deck detail groups by mana value with ?group=cmc and falls back to type otherwise', async () => {
@@ -334,6 +339,7 @@ test('a commander name on a non-Commander deck adds no Commander group or count'
   const res = await lee.request('GET', `/decks/${deck._id}`);
   assert.match(res.text, /Cards \(0\)/);
   assert.doesNotMatch(res.text, /<h3>Commander/);
+  assert.equal(deck.commanderImageUrl, '');
 });
 
 test('Set as commander overwrites name and art from the re-fetched card, keeping q', async () => {
@@ -370,12 +376,23 @@ test('Set as commander is refused for non-owners, non-Commander decks, and empty
   const modern = await alice.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1' });
   assert.equal(modern.status, 302);
   assert.equal((await aliceDeck()).commanderImageUrl, '');
+  assert.equal((await aliceDeck()).commander, undefined);
 
   await nia.request('POST', '/decks', { name: 'NiasCmdr', format: 'Commander' });
   const own = await Deck.findOne({ name: 'NiasCmdr' });
   const empty = await nia.request('POST', `/decks/${own._id}/commander`, { scryfall_id: '' });
   assert.equal(empty.status, 302);
   assert.equal((await Deck.findOne({ name: 'NiasCmdr' })).commander, undefined);
+});
+
+test('a hung commander lookup times out and the deck is still created without art', async () => {
+  const oz = makeClient();
+  await oz.request('POST', '/register', { username_input: 'Ozzy', password_input: 'hunter2hunter' });
+  const res = await oz.request('POST', '/decks', { name: 'OzsHang', format: 'Commander', commander: 'hang' });
+  assert.equal(res.status, 302);
+  const deck = await Deck.findOne({ name: 'OzsHang' });
+  assert.ok(deck);
+  assert.equal(deck.commanderImageUrl, '');
 });
 
 export { makeClient, aliceDeck };

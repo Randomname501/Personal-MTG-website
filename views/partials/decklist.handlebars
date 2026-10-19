@@ -4,7 +4,7 @@
       <h3>{{this.label}} <span>({{this.count}})</span></h3>
       <ul class="cardlist">
         {{#each this.cards}}
-          <li tabindex="0">
+          <li{{#unless ../../editable}} tabindex="0"{{/unless}}>
             <span class="cardlist__qty">{{this.quantity}}</span>
             <span class="cardlist__name">{{this.name}}</span>
             <span class="cardlist__meta">{{this.manaCost}}</span>

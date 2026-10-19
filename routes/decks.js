@@ -73,7 +73,7 @@ router.post('/decks', requireAuth, async (req, res, next) => {
   try {
     // Best-effort: an unrecognized or misspelled commander name just means no
     // image, not a failed deck creation.
-    const commanderCard = commanderName ? await getCardByName(commanderName).catch(() => null) : null;
+    const commanderCard = format === 'Commander' && commanderName ? await getCardByName(commanderName).catch(() => null) : null;
 
     await Deck.create({
       name: (name || '').trim(),
