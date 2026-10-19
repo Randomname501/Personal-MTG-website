@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { searchCards, getCardById } from '../lib/scryfall.js';
+import { searchCards, getCardById, getCardByName } from '../lib/scryfall.js';
 
 let server;
 let baseUrl;
@@ -45,6 +45,13 @@ before(async () => {
     }
     if (u.pathname === '/cards/abc-123') return res.end(JSON.stringify(NORMAL_CARD));
     if (u.pathname === '/cards/dfc-1') return res.end(JSON.stringify(DFC_CARD));
+    if (u.pathname === '/cards/named') {
+      const fuzzy = u.searchParams.get('fuzzy');
+      if (fuzzy === 'counterspel') return res.end(JSON.stringify(NORMAL_CARD));
+      if (fuzzy === 'explode') { res.statusCode = 500; return res.end(JSON.stringify({ object: 'error' })); }
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ object: 'error' }));
+    }
     res.statusCode = 404;
     res.end(JSON.stringify({ object: 'error' }));
   });
@@ -89,4 +96,19 @@ test('getCardById pulls mana cost and image from the front face of a DFC', async
   assert.equal(card.manaCost, '{U}');
   assert.equal(card.imageUrl, 'http://img/delver.jpg');
   assert.equal(card.cmc, 1);
+});
+
+test('getCardByName fuzzy-matches and normalizes the card', async () => {
+  const card = await getCardByName('counterspel');
+  assert.equal(card.scryfallId, 'abc-123');
+  assert.equal(card.name, 'Counterspell');
+  assert.equal(card.imageUrl, 'http://img/cs.jpg');
+});
+
+test('getCardByName returns null when Scryfall 404s', async () => {
+  assert.equal(await getCardByName('nomatchxyz'), null);
+});
+
+test('getCardByName throws on other Scryfall errors', async () => {
+  await assert.rejects(() => getCardByName('explode'), /Scryfall name lookup failed: 500/);
 });

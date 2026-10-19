@@ -48,6 +48,15 @@ const CARD = {
   type_line: 'Instant',
   image_uris: { normal: 'http://img/cs.jpg' },
 };
+const ATRAXA = {
+  id: 'atraxa-1',
+  name: "Atraxa, Praetors' Voice",
+  mana_cost: '{G}{W}{U}{B}',
+  cmc: 4,
+  colors: ['W', 'U', 'B', 'G'],
+  type_line: 'Legendary Creature — Phyrexian Angel Horror',
+  image_uris: { normal: 'http://img/atraxa.jpg' },
+};
 
 let baseUrl;
 let server;
@@ -70,6 +79,14 @@ before(async () => {
       res.statusCode = 404;
       return res.end(JSON.stringify({ object: 'error' }));
     }
+    if (u.pathname === '/cards/named') {
+      const fuzzy = u.searchParams.get('fuzzy');
+      if (fuzzy === 'atraxa') return res.end(JSON.stringify(ATRAXA));
+      if (fuzzy === 'explode') { res.statusCode = 500; return res.end(JSON.stringify({ object: 'error' })); }
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ object: 'error' }));
+    }
+    if (u.pathname === '/cards/atraxa-1') return res.end(JSON.stringify(ATRAXA));
     if (u.pathname === '/cards/abc-123') return res.end(JSON.stringify(CARD));
     res.statusCode = 404;
     res.end(JSON.stringify({ object: 'error' }));
@@ -250,6 +267,28 @@ test('deck detail shows the card breakdown for a deck with cards', async () => {
   assert.match(res.text, /Card breakdown/);
   assert.match(res.text, /Mana curve/);
   assert.match(res.text, /Instant/); // Counterspell's primary type
+});
+
+test('creating a deck with a commander name stores the fuzzy-matched art', async () => {
+  const ivy = makeClient();
+  await ivy.request('POST', '/register', { username_input: 'Ivy', password_input: 'hunter2hunter' });
+  const res = await ivy.request('POST', '/decks', { name: 'IvysAtraxa', format: 'Commander', commander: 'atraxa' });
+  assert.equal(res.status, 302);
+  const deck = await Deck.findOne({ name: 'IvysAtraxa' });
+  assert.equal(deck.commander, 'atraxa'); // typed name kept at creation
+  assert.equal(deck.commanderImageUrl, 'http://img/atraxa.jpg');
+});
+
+test('an unmatched or erroring commander lookup still creates the deck, without art', async () => {
+  const jack = makeClient();
+  await jack.request('POST', '/register', { username_input: 'Jack', password_input: 'hunter2hunter' });
+  await jack.request('POST', '/decks', { name: 'JacksNoMatch', format: 'Commander', commander: 'nomatchxyz' });
+  await jack.request('POST', '/decks', { name: 'JacksBoom', format: 'Commander', commander: 'explode' });
+  for (const name of ['JacksNoMatch', 'JacksBoom']) {
+    const deck = await Deck.findOne({ name });
+    assert.ok(deck, `${name} was created`);
+    assert.equal(deck.commanderImageUrl, '');
+  }
 });
 
 export { makeClient, aliceDeck };
