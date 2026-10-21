@@ -4,7 +4,8 @@ import { Deck, DECK_FORMATS, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
 import { getCardInsights, groupCards } from '../lib/cardInsights.js';
-import { searchCards, getCardById, getCardByName } from '../lib/scryfall.js';
+import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
+import { parseDecklist } from '../lib/decklist.js';
 
 const router = express.Router();
 
@@ -129,6 +130,21 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
   }
 });
 
+// The card manager page; `extra` carries search results or an import outcome.
+const renderManager = (res, deck, extra = {}) => {
+  const plain = deck.toObject();
+  res.render('deckCards', {
+    title: `Manage: ${deck.name}`,
+    deck: plain,
+    query: '',
+    searched: false,
+    results: [],
+    cardGroups: groupCards(plain.cards),
+    isCommanderDeck: deck.format === 'Commander',
+    ...extra,
+  });
+};
+
 router.get('/decks/:id/cards', requireAuth, async (req, res, next) => {
   try {
     const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
@@ -138,15 +154,7 @@ router.get('/decks/:id/cards', requireAuth, async (req, res, next) => {
     const searched = query.length > 0;
     const results = searched ? await searchCards(query) : [];
 
-    res.render('deckCards', {
-      title: `Manage: ${deck.name}`,
-      deck: deck.toObject(),
-      query,
-      searched,
-      results,
-      cardGroups: groupCards(deck.toObject().cards),
-      isCommanderDeck: deck.format === 'Commander',
-    });
+    renderManager(res, deck, { query, searched, results });
   } catch (err) {
     next(err);
   }
@@ -190,6 +198,55 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
       await deck.save();
     }
     res.redirect(`/decks/${deck._id}/cards`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Replace a deck's cards with a pasted Moxfield/Archidekt text export. Names are
+// resolved through Scryfall; unmatched lines are reported back, and a paste that
+// matches nothing leaves the deck as it was.
+const MAX_IMPORT_NAMES = 250;
+
+router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+
+    const decklist = typeof req.body.decklist === 'string' ? req.body.decklist : '';
+    const { cards, commander } = parseDecklist(decklist);
+    const isCommanderDeck = deck.format === 'Commander';
+    // A commander line only means something on a Commander deck; elsewhere it's an ordinary card.
+    const wanted = commander && !isCommanderDeck ? [...cards, { name: commander, quantity: 1 }] : cards;
+    const names = [...wanted.map((c) => c.name), ...(commander && isCommanderDeck ? [commander] : [])];
+
+    const fail = (message, notFound = []) =>
+      renderManager(res, deck, { importResult: { message, notFound }, importText: decklist });
+    if (names.length === 0) return fail('No cards were imported — paste a decklist like "1 Sol Ring".');
+    if (names.length > MAX_IMPORT_NAMES) return fail(`No cards were imported — that list has more than ${MAX_IMPORT_NAMES} different cards.`);
+
+    const { found, notFound } = await getCardsByNames(names);
+    const byId = new Map(); // two spellings of one card (e.g. a DFC's front face) merge
+    for (const { name, quantity } of wanted) {
+      const card = found.get(name.toLowerCase());
+      if (!card) continue;
+      const entry = byId.get(card.scryfallId);
+      if (entry) entry.quantity += quantity;
+      else byId.set(card.scryfallId, { ...card, quantity });
+    }
+    const commanderCard = commander && isCommanderDeck ? found.get(commander.toLowerCase()) : undefined;
+    if (byId.size === 0 && !commanderCard) return fail('No cards were imported — none of those names matched a card.', notFound);
+
+    deck.cards = [...byId.values()];
+    if (commanderCard) {
+      deck.commander = commanderCard.name;
+      deck.commanderImageUrl = commanderCard.imageUrl;
+    }
+    await deck.save();
+
+    const total = deck.cards.reduce((sum, c) => sum + c.quantity, 0);
+    const message = `Imported ${total} cards${commanderCard ? ` with ${commanderCard.name} as commander` : ''}.`;
+    renderManager(res, deck, { importResult: { message, notFound } });
   } catch (err) {
     next(err);
   }

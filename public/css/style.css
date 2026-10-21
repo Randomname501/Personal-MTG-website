@@ -988,7 +988,10 @@ main:not(.landing) h2 {
 .decklist__group { break-inside: avoid; margin-bottom: 1.4rem; }
 .decklist__group h3 { font-family: 'Cinzel', serif; font-size: 1rem; margin-bottom: 0.3rem; }
 .decklist__group h3 span { color: var(--ink-soft); font-weight: 400; }
-.decklist .cardlist li { position: relative; padding: 0.3rem 0.2rem; font-size: 0.92rem; }
+/* inline-flex makes each row unbreakable, so the absolutely positioned hover preview
+   isn't fragmented into the columns. Otherwise, showing it rebalances the columns, the row
+   moves out from under the cursor and the preview flickers. */
+.decklist .cardlist li { position: relative; display: inline-flex; width: 100%; vertical-align: top; padding: 0.3rem 0.2rem; font-size: 0.92rem; }
 .decklist .cardlist__qty { min-width: 1.4rem; }
 .decklist .cardlist li:hover, .decklist .cardlist li:focus-within { background: rgba(31, 92, 153, 0.08); }
 .decklist .cardlist li:focus-visible { outline: 2px solid var(--mana-u); outline-offset: 1px; }
@@ -1285,3 +1288,8 @@ main:not(.landing) h2 {
   font-size: 0.85rem;
   color: var(--ink-soft);
 }
+
+.deck-import { margin-bottom: 1.6rem; }
+.deck-import summary { cursor: pointer; font-family: 'Cinzel', serif; font-weight: 700; }
+.deck-import textarea { width: 100%; font-family: monospace; margin: 0.4rem 0 0.8rem; }
+.import-result { border-left: 4px solid var(--mana-u); padding: 0.4rem 0.8rem; margin: 0.6rem 0; }
