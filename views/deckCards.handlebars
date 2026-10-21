@@ -23,6 +23,13 @@
                   <input type="hidden" name="q" value="{{../query}}" />
                   <button type="submit" class="button">Add</button>
                 </form>
+                {{#if ../isCommanderDeck}}
+                  <form action="/decks/{{../deck._id}}/commander" method="POST">
+                    <input type="hidden" name="scryfall_id" value="{{this.scryfallId}}" />
+                    <input type="hidden" name="q" value="{{../query}}" />
+                    <button type="submit" class="button">Set as commander</button>
+                  </form>
+                {{/if}}
               </div>
             </div>
           {{/each}}
@@ -35,19 +42,14 @@
 
   <section class="deck-cardlist">
     <h2>In this deck</h2>
+    {{#if isCommanderDeck}}{{#if deck.commander}}
+      <p class="current-commander">
+        {{#if deck.commanderImageUrl}}<img src="{{deck.commanderImageUrl}}" alt="" />{{/if}}
+        Commander: <strong>{{deck.commander}}</strong>
+      </p>
+    {{/if}}{{/if}}
     {{#if deck.cards.length}}
-      <ul class="cardlist">
-        {{#each deck.cards}}
-          <li>
-            <span class="cardlist__qty">{{this.quantity}}&times;</span>
-            <span class="cardlist__name">{{this.name}}</span>
-            <span class="cardlist__meta">{{this.manaCost}}</span>
-            <form action="/decks/{{../deck._id}}/cards/{{this.scryfallId}}/remove" method="POST" style="display:inline">
-              <button type="submit" class="button cancel-button">Remove</button>
-            </form>
-          </li>
-        {{/each}}
-      </ul>
+      {{> decklist groups=cardGroups deckId=deck._id editable=true}}
     {{else}}
       <p>No cards yet. Search above to add some.</p>
     {{/if}}

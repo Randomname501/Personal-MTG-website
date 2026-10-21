@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getCardInsights } from '../lib/cardInsights.js';
+import { getCardInsights, groupCards } from '../lib/cardInsights.js';
 
 // Minimal card with sensible defaults; override per case.
 const card = (over) => ({ quantity: 1, cmc: 0, colors: [], typeLine: '', ...over });
@@ -103,4 +103,50 @@ test('pct scales each group to its own max, with no divide-by-zero on empty buck
   assert.equal(pctByBucket['1'], 100); // max bucket
   assert.equal(pctByBucket['2'], 50);
   assert.equal(pctByBucket['0'], 0); // empty bucket, no NaN
+});
+
+test('groupCards type mode orders groups (lands last) and sorts by cmc then name', () => {
+  const g = groupCards([
+    card({ name: 'Island', typeLine: 'Basic Land — Island', quantity: 30 }),
+    card({ name: 'Zebra', typeLine: 'Creature — Zebra', cmc: 2 }),
+    card({ name: 'Ape', typeLine: 'Creature — Ape', cmc: 2, quantity: 2 }),
+    card({ name: 'Elf', typeLine: 'Creature — Elf', cmc: 1 }),
+    card({ name: 'Bolt', typeLine: 'Instant', cmc: 1 }),
+  ]);
+  assert.deepEqual(g.map((x) => x.label), ['Creatures', 'Instants', 'Lands']);
+  assert.deepEqual(g[0].cards.map((c) => c.name), ['Elf', 'Ape', 'Zebra']);
+  assert.equal(g[0].count, 4);
+  assert.equal(g[2].count, 30);
+});
+
+test('groupCards cmc mode buckets nonlands 0..7+, lands last, sorted by name, empties dropped', () => {
+  const g = groupCards([
+    card({ name: 'Forest', typeLine: 'Basic Land — Forest', quantity: 10 }),
+    card({ name: 'Zap', typeLine: 'Instant', cmc: 1 }),
+    card({ name: 'Arrow', typeLine: 'Instant', cmc: 1, quantity: 2 }),
+    card({ name: 'Emrakul', typeLine: 'Legendary Creature — Eldrazi', cmc: 15 }),
+    card({ name: 'Ornithopter', typeLine: 'Artifact Creature — Thopter', cmc: 0 }),
+  ], { mode: 'cmc' });
+  assert.deepEqual(g.map((x) => x.label), ['0', '1', '7+', 'Lands']);
+  assert.deepEqual(g[1].cards.map((c) => c.name), ['Arrow', 'Zap']);
+  assert.equal(g[1].count, 3);
+  assert.equal(g[3].count, 10);
+});
+
+test('groupCards puts a named commander first and omits it when there is no name', () => {
+  const cards = [card({ name: 'Bolt', typeLine: 'Instant', cmc: 1 })];
+  const withCmdr = groupCards(cards, { commander: { name: 'Atraxa', imageUrl: 'http://img/a.jpg' } });
+  assert.equal(withCmdr[0].label, 'Commander');
+  assert.equal(withCmdr[0].count, 1);
+  assert.deepEqual(withCmdr[0].cards, [{ name: 'Atraxa', imageUrl: 'http://img/a.jpg', quantity: 1 }]);
+  assert.equal(withCmdr[1].label, 'Instants');
+
+  assert.deepEqual(groupCards(cards, { commander: { name: '', imageUrl: '' } }).map((x) => x.label), ['Instants']);
+  assert.deepEqual(groupCards([], { mode: 'cmc', commander: { name: 'Atraxa' } }).map((x) => x.label), ['Commander']);
+});
+
+test('groupCards falls back to type mode and treats non-arrays as empty', () => {
+  const cards = [card({ name: 'Bolt', typeLine: 'Instant', cmc: 1 })];
+  assert.deepEqual(groupCards(cards, { mode: 'color' }).map((x) => x.label), ['Instants']);
+  assert.deepEqual(groupCards(undefined), []);
 });

@@ -3,8 +3,8 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
-import { getCardInsights } from '../lib/cardInsights.js';
-import { searchCards, getCardById } from '../lib/scryfall.js';
+import { getCardInsights, groupCards } from '../lib/cardInsights.js';
+import { searchCards, getCardById, getCardByName } from '../lib/scryfall.js';
 
 const router = express.Router();
 
@@ -68,13 +68,20 @@ router.post('/decks', requireAuth, async (req, res, next) => {
   if (!Array.isArray(colors)) colors = [colors];
   colors = colors.filter((c) => MTG_COLORS.includes(c));
 
+  const commanderName = (commander || '').trim();
+
   try {
+    // Best-effort: an unrecognized or misspelled commander name just means no
+    // image, not a failed deck creation.
+    const commanderCard = format === 'Commander' && commanderName ? await getCardByName(commanderName).catch(() => null) : null;
+
     await Deck.create({
       name: (name || '').trim(),
       format,
       owner: req.currentUser._id,
       colors,
-      commander: (commander || '').trim() || undefined,
+      commander: commanderName || undefined,
+      commanderImageUrl: commanderCard?.imageUrl || '',
       archetype: (archetype || '').trim() || undefined,
       description: (description || '').trim() || undefined,
     });
@@ -106,9 +113,17 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const stats = await getDeckStats(deck._id);
     const isOwner = req.currentUser._id.toString() === deck.owner.toString();
     const isTracked = (req.currentUser.trackedDecks || []).some((t) => t.toString() === deck._id.toString());
-    const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0);
+    // The commander lives outside deck.cards; it joins the list (and the count)
+    // only on Commander-format decks.
+    const hasCommander = deck.format === 'Commander' && Boolean(deck.commander);
+    const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0) + (hasCommander ? 1 : 0);
     const insights = getCardInsights(deck.cards || []);
-    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights });
+    const groupMode = ['type', 'cmc'].includes(req.query.group) ? req.query.group : 'type';
+    const cardGroups = groupCards(deck.cards, {
+      mode: groupMode,
+      commander: hasCommander ? { name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
+    });
+    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode });
   } catch (err) {
     next(err);
   }
@@ -129,6 +144,8 @@ router.get('/decks/:id/cards', requireAuth, async (req, res, next) => {
       query,
       searched,
       results,
+      cardGroups: groupCards(deck.toObject().cards),
+      isCommanderDeck: deck.format === 'Commander',
     });
   } catch (err) {
     next(err);
@@ -173,6 +190,28 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
       await deck.save();
     }
     res.redirect(`/decks/${deck._id}/cards`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/decks/:id/commander', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+
+    const scryfallId = (req.body.scryfall_id || '').trim();
+    const q = (req.body.q || '').trim();
+    const back = q ? `/decks/${deck._id}/cards?q=${encodeURIComponent(q)}` : `/decks/${deck._id}/cards`;
+    if (deck.format !== 'Commander' || !scryfallId) return res.redirect(back);
+
+    // Re-fetch for the canonical name and art; never trust client-posted card fields.
+    const card = await getCardById(scryfallId);
+    deck.commander = card.name;
+    deck.commanderImageUrl = card.imageUrl;
+    await deck.save();
+
+    res.redirect(back);
   } catch (err) {
     next(err);
   }

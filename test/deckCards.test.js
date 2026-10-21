@@ -48,6 +48,15 @@ const CARD = {
   type_line: 'Instant',
   image_uris: { normal: 'http://img/cs.jpg' },
 };
+const ATRAXA = {
+  id: 'atraxa-1',
+  name: "Atraxa, Praetors' Voice",
+  mana_cost: '{G}{W}{U}{B}',
+  cmc: 4,
+  colors: ['W', 'U', 'B', 'G'],
+  type_line: 'Legendary Creature — Phyrexian Angel Horror',
+  image_uris: { normal: 'http://img/atraxa.jpg' },
+};
 
 let baseUrl;
 let server;
@@ -59,6 +68,7 @@ const aliceDeck = () => Deck.findOne({ name: 'Azorius' });
 
 before(async () => {
   process.env.MONGODB_URI = 'mongodb://localhost:27017/mtg_tracker_cards_test';
+  process.env.SCRYFALL_TIMEOUT_MS = '200';
   await connectMongo();
   await mongoose.connection.dropDatabase();
 
@@ -70,6 +80,15 @@ before(async () => {
       res.statusCode = 404;
       return res.end(JSON.stringify({ object: 'error' }));
     }
+    if (u.pathname === '/cards/named') {
+      const fuzzy = u.searchParams.get('fuzzy');
+      if (fuzzy === 'atraxa') return res.end(JSON.stringify(ATRAXA));
+      if (fuzzy === 'hang') return; // never respond
+      if (fuzzy === 'explode') { res.statusCode = 500; return res.end(JSON.stringify({ object: 'error' })); }
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ object: 'error' }));
+    }
+    if (u.pathname === '/cards/atraxa-1') return res.end(JSON.stringify(ATRAXA));
     if (u.pathname === '/cards/abc-123') return res.end(JSON.stringify(CARD));
     res.statusCode = 404;
     res.end(JSON.stringify({ object: 'error' }));
@@ -97,6 +116,7 @@ after(async () => {
   await mongoose.connection.dropDatabase();
   await mongoose.disconnect();
   await new Promise((resolve) => server.close(resolve));
+  scryfall.closeAllConnections();
   await new Promise((resolve) => scryfall.close(resolve));
 });
 
@@ -198,6 +218,7 @@ test('deck detail shows the card list and a Manage Cards button for the owner', 
   assert.equal(res.status, 200);
   assert.match(res.text, /Counterspell/);
   assert.match(res.text, /Manage Cards/);
+  assert.match(res.text, /<li tabindex="0">/);
 });
 
 test('deck detail shows the card list but no Manage button to a non-owner', async () => {
@@ -250,6 +271,128 @@ test('deck detail shows the card breakdown for a deck with cards', async () => {
   assert.match(res.text, /Card breakdown/);
   assert.match(res.text, /Mana curve/);
   assert.match(res.text, /Instant/); // Counterspell's primary type
+});
+
+test('creating a deck with a commander name stores the fuzzy-matched art', async () => {
+  const ivy = makeClient();
+  await ivy.request('POST', '/register', { username_input: 'Ivy', password_input: 'hunter2hunter' });
+  const res = await ivy.request('POST', '/decks', { name: 'IvysAtraxa', format: 'Commander', commander: 'atraxa' });
+  assert.equal(res.status, 302);
+  const deck = await Deck.findOne({ name: 'IvysAtraxa' });
+  assert.equal(deck.commander, 'atraxa'); // typed name kept at creation
+  assert.equal(deck.commanderImageUrl, 'http://img/atraxa.jpg');
+});
+
+test('an unmatched or erroring commander lookup still creates the deck, without art', async () => {
+  const jack = makeClient();
+  await jack.request('POST', '/register', { username_input: 'Jack', password_input: 'hunter2hunter' });
+  await jack.request('POST', '/decks', { name: 'JacksNoMatch', format: 'Commander', commander: 'nomatchxyz' });
+  await jack.request('POST', '/decks', { name: 'JacksBoom', format: 'Commander', commander: 'explode' });
+  for (const name of ['JacksNoMatch', 'JacksBoom']) {
+    const deck = await Deck.findOne({ name });
+    assert.ok(deck, `${name} was created`);
+    assert.equal(deck.commanderImageUrl, '');
+  }
+});
+
+test('manager lists deck cards grouped by type with a Remove button per card', async () => {
+  const deck = await aliceDeck(); // holds Counterspell (Instant) from earlier tests
+  const res = await alice.request('GET', `/decks/${deck._id}/cards`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /class="decklist"/);
+  assert.match(res.text, /Instants <span>\(2\)<\/span>/);
+  assert.match(res.text, new RegExp(`action="/decks/${deck._id}/cards/abc-123/remove"`));
+  assert.doesNotMatch(res.text, /tabindex="0"/);
+});
+
+test('deck detail groups by mana value with ?group=cmc and falls back to type otherwise', async () => {
+  const deck = await aliceDeck(); // Counterspell, cmc 2
+  const cmc = await alice.request('GET', `/decks/${deck._id}?group=cmc`);
+  assert.match(cmc.text, /<h3>2 <span>\(2\)<\/span><\/h3>/);
+  assert.match(cmc.text, /href="\?group=cmc"[^>]*aria-current="true"/);
+
+  for (const qs of ['?group=color', '?group=cmc&group=type', '']) {
+    const res = await alice.request('GET', `/decks/${deck._id}${qs}`);
+    assert.equal(res.status, 200, qs);
+    assert.match(res.text, /<h3>Instants <span>\(2\)<\/span><\/h3>/, qs);
+    assert.match(res.text, /href="\?group=type"[^>]*aria-current="true"/, qs);
+  }
+});
+
+test('a Commander deck with a commander and no cards shows a Commander group and Cards (1)', async () => {
+  const kim = makeClient();
+  await kim.request('POST', '/register', { username_input: 'Kim', password_input: 'hunter2hunter' });
+  await kim.request('POST', '/decks', { name: 'KimsAtraxa', format: 'Commander', commander: 'atraxa' });
+  const deck = await Deck.findOne({ name: 'KimsAtraxa' });
+  const res = await kim.request('GET', `/decks/${deck._id}`);
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Cards \(1\)/);
+  assert.match(res.text, /<h3>Commander <span>\(1\)<\/span><\/h3>/);
+  assert.match(res.text, /Add some/); // owner hint still shown: deck.cards is empty
+});
+
+test('a commander name on a non-Commander deck adds no Commander group or count', async () => {
+  const lee = makeClient();
+  await lee.request('POST', '/register', { username_input: 'Lee', password_input: 'hunter2hunter' });
+  await lee.request('POST', '/decks', { name: 'LeesModern', format: 'Modern', commander: 'atraxa' });
+  const deck = await Deck.findOne({ name: 'LeesModern' });
+  const res = await lee.request('GET', `/decks/${deck._id}`);
+  assert.match(res.text, /Cards \(0\)/);
+  assert.doesNotMatch(res.text, /<h3>Commander/);
+  assert.equal(deck.commanderImageUrl, '');
+});
+
+test('Set as commander overwrites name and art from the re-fetched card, keeping q', async () => {
+  const max = makeClient();
+  await max.request('POST', '/register', { username_input: 'Max', password_input: 'hunter2hunter' });
+  await max.request('POST', '/decks', { name: 'MaxsCmdr', format: 'Commander', commander: 'nomatchxyz' });
+  const deck = await Deck.findOne({ name: 'MaxsCmdr' });
+
+  const page = await max.request('GET', `/decks/${deck._id}/cards?q=counterspell`);
+  assert.match(page.text, /Set as commander/);
+
+  const res = await max.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1', q: 'a&b c' });
+  assert.equal(res.status, 302);
+  assert.equal(res.location, `/decks/${deck._id}/cards?q=a%26b%20c`);
+
+  const updated = await Deck.findOne({ name: 'MaxsCmdr' });
+  assert.equal(updated.commander, "Atraxa, Praetors' Voice");
+  assert.equal(updated.commanderImageUrl, 'http://img/atraxa.jpg');
+  assert.equal(updated.cards.length, 0); // commander is not added to the card list
+
+  const managerPage = await max.request('GET', `/decks/${deck._id}/cards`);
+  assert.match(managerPage.text, /class="current-commander"/);
+});
+
+test('Set as commander is refused for non-owners, non-Commander decks, and empty ids', async () => {
+  const deck = await aliceDeck(); // Alice's Modern deck
+  const nia = makeClient();
+  await nia.request('POST', '/register', { username_input: 'Nia', password_input: 'hunter2hunter' });
+  const denied = await nia.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1' });
+  assert.equal(denied.status, 404);
+
+  const page = await alice.request('GET', `/decks/${deck._id}/cards?q=counterspell`);
+  assert.doesNotMatch(page.text, /Set as commander/);
+  const modern = await alice.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1' });
+  assert.equal(modern.status, 302);
+  assert.equal((await aliceDeck()).commanderImageUrl, '');
+  assert.equal((await aliceDeck()).commander, undefined);
+
+  await nia.request('POST', '/decks', { name: 'NiasCmdr', format: 'Commander' });
+  const own = await Deck.findOne({ name: 'NiasCmdr' });
+  const empty = await nia.request('POST', `/decks/${own._id}/commander`, { scryfall_id: '' });
+  assert.equal(empty.status, 302);
+  assert.equal((await Deck.findOne({ name: 'NiasCmdr' })).commander, undefined);
+});
+
+test('a hung commander lookup times out and the deck is still created without art', async () => {
+  const oz = makeClient();
+  await oz.request('POST', '/register', { username_input: 'Ozzy', password_input: 'hunter2hunter' });
+  const res = await oz.request('POST', '/decks', { name: 'OzsHang', format: 'Commander', commander: 'hang' });
+  assert.equal(res.status, 302);
+  const deck = await Deck.findOne({ name: 'OzsHang' });
+  assert.ok(deck);
+  assert.equal(deck.commanderImageUrl, '');
 });
 
 export { makeClient, aliceDeck };
