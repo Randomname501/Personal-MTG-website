@@ -80,6 +80,19 @@ before(async () => {
       res.statusCode = 404;
       return res.end(JSON.stringify({ object: 'error' }));
     }
+    if (u.pathname === '/cards/collection' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', () => {
+        const known = { counterspell: CARD, "atraxa, praetors' voice": ATRAXA };
+        const ids = JSON.parse(body).identifiers;
+        res.end(JSON.stringify({
+          data: ids.map((i) => known[i.name.toLowerCase()]).filter(Boolean),
+          not_found: ids.filter((i) => !known[i.name.toLowerCase()]),
+        }));
+      });
+      return;
+    }
     if (u.pathname === '/cards/named') {
       const fuzzy = u.searchParams.get('fuzzy');
       if (fuzzy === 'atraxa') return res.end(JSON.stringify(ATRAXA));
@@ -393,6 +406,56 @@ test('a hung commander lookup times out and the deck is still created without ar
   const deck = await Deck.findOne({ name: 'OzsHang' });
   assert.ok(deck);
   assert.equal(deck.commanderImageUrl, '');
+});
+
+test('importing a decklist replaces the cards and lists names it could not find', async () => {
+  const pat = makeClient();
+  await pat.request('POST', '/register', { username_input: 'Pat', password_input: 'hunter2hunter' });
+  await pat.request('POST', '/decks', { name: 'PatsImport', format: 'Modern' });
+  const deck = await Deck.findOne({ name: 'PatsImport' });
+  await pat.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' }); // 1 Counterspell before import
+
+  const res = await pat.request('POST', `/decks/${deck._id}/import`, { decklist: '3 Counterspell (MH2) 267\n1 Made Up Card' });
+  assert.equal(res.status, 200);
+  assert.match(res.text, /Imported 3 cards/);
+  assert.match(res.text, /Made Up Card/);
+
+  const updated = await Deck.findOne({ name: 'PatsImport' });
+  assert.equal(updated.cards.length, 1);
+  assert.equal(updated.cards[0].name, 'Counterspell');
+  assert.equal(updated.cards[0].quantity, 3); // replaced, not 1 + 3
+});
+
+test('importing into a Commander deck sets the commander and keeps it out of the card list', async () => {
+  const quin = makeClient();
+  await quin.request('POST', '/register', { username_input: 'Quin', password_input: 'hunter2hunter' });
+  await quin.request('POST', '/decks', { name: 'QuinsImport', format: 'Commander' });
+  const deck = await Deck.findOne({ name: 'QuinsImport' });
+
+  await quin.request('POST', `/decks/${deck._id}/import`, {
+    decklist: "1x Atraxa, Praetors' Voice (2x2) 190 [Commander{top}]\n1x Counterspell (cmr) 1 [Interaction]",
+  });
+  const updated = await Deck.findOne({ name: 'QuinsImport' });
+  assert.equal(updated.commander, "Atraxa, Praetors' Voice");
+  assert.equal(updated.commanderImageUrl, 'http://img/atraxa.jpg');
+  assert.deepEqual(updated.cards.map((c) => c.name), ['Counterspell']);
+});
+
+test('an import where nothing matches leaves the deck untouched', async () => {
+  const deck = await aliceDeck(); // holds Counterspell x2
+  const res = await alice.request('POST', `/decks/${deck._id}/import`, { decklist: '1 Made Up Card' });
+  assert.equal(res.status, 200);
+  assert.match(res.text, /No cards were imported/);
+  const updated = await aliceDeck();
+  assert.equal(updated.cards.find((c) => c.scryfallId === 'abc-123').quantity, 2);
+});
+
+test('a non-owner cannot import into a deck', async () => {
+  const deck = await aliceDeck();
+  const ray = makeClient();
+  await ray.request('POST', '/register', { username_input: 'Ray', password_input: 'hunter2hunter' });
+  const res = await ray.request('POST', `/decks/${deck._id}/import`, { decklist: '1 Counterspell' });
+  assert.equal(res.status, 404);
 });
 
 export { makeClient, aliceDeck };
