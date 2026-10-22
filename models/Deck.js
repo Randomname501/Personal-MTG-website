@@ -26,6 +26,8 @@ const cardSchema = new mongoose.Schema(
     typeLine: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
     quantity: { type: Number, default: 1, min: 1 },
+    // The owner's private note on this card in this deck.
+    note: { type: String, default: '', maxlength: 2000 },
   },
   { _id: false }
 );

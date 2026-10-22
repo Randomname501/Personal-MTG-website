@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getCardInsights, groupCards } from '../lib/cardInsights.js';
+import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
 
 // Minimal card with sensible defaults; override per case.
 const card = (over) => ({ quantity: 1, cmc: 0, colors: [], typeLine: '', ...over });
@@ -149,4 +149,12 @@ test('groupCards falls back to type mode and treats non-arrays as empty', () => 
   const cards = [card({ name: 'Bolt', typeLine: 'Instant', cmc: 1 })];
   assert.deepEqual(groupCards(cards, { mode: 'color' }).map((x) => x.label), ['Instants']);
   assert.deepEqual(groupCards(undefined), []);
+});
+
+test('withoutCommander drops one copy of the commander by name, case-insensitively', () => {
+  const cards = [card({ name: "Atraxa, Praetors' Voice" }), card({ name: 'Sol Ring', quantity: 2 })];
+  assert.deepEqual(withoutCommander(cards, "atraxa, praetors' voice").map((c) => c.name), ['Sol Ring']);
+  assert.equal(withoutCommander(cards, 'Sol Ring').find((c) => c.name === 'Sol Ring').quantity, 1);
+  assert.equal(withoutCommander(cards, '').length, 2);
+  assert.deepEqual(withoutCommander(undefined, 'X'), []);
 });
