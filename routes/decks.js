@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
-import { getCardInsights, groupCards } from '../lib/cardInsights.js';
+import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
 import { parseDecklist } from '../lib/decklist.js';
 
@@ -117,10 +117,11 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     // The commander lives outside deck.cards; it joins the list (and the count)
     // only on Commander-format decks.
     const hasCommander = deck.format === 'Commander' && Boolean(deck.commander);
-    const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0) + (hasCommander ? 1 : 0);
-    const insights = getCardInsights(deck.cards || []);
+    const cards = hasCommander ? withoutCommander(deck.cards, deck.commander) : deck.cards || [];
+    const cardCount = cards.reduce((sum, c) => sum + c.quantity, 0) + (hasCommander ? 1 : 0);
+    const insights = getCardInsights(cards);
     const groupMode = ['type', 'cmc'].includes(req.query.group) ? req.query.group : 'type';
-    const cardGroups = groupCards(deck.cards, {
+    const cardGroups = groupCards(cards, {
       mode: groupMode,
       commander: hasCommander ? { name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
     });

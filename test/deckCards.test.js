@@ -458,4 +458,18 @@ test('a non-owner cannot import into a deck', async () => {
   assert.equal(res.status, 404);
 });
 
+test('a commander that is also in the card list is counted and listed once', async () => {
+  const sam = makeClient();
+  await sam.request('POST', '/register', { username_input: 'Sam', password_input: 'hunter2hunter' });
+  await sam.request('POST', '/decks', { name: 'SamsDouble', format: 'Commander' });
+  const deck = await Deck.findOne({ name: 'SamsDouble' });
+  await sam.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'atraxa-1' }); // added as a card...
+  await sam.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1' }); // ...and set as commander
+
+  const res = await sam.request('GET', `/decks/${deck._id}`);
+  assert.match(res.text, /Cards \(1\)/);
+  assert.equal(res.text.match(/cardlist__name">Atraxa/g).length, 1);
+  assert.doesNotMatch(res.text, /<h3>Creatures/);
+});
+
 export { makeClient, aliceDeck };
