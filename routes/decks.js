@@ -209,6 +209,49 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
 // matches nothing leaves the deck as it was.
 const MAX_IMPORT_NAMES = 250;
 
+// Owner-only page for a private note on one card in a deck.
+const NOTE_MAX = 2000;
+
+const findOwnedCard = async (req) => {
+  const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+  const card = deck?.cards.find((c) => c.scryfallId === req.params.scryfallId);
+  return card ? { deck, card } : null;
+};
+
+// `card` is a plain object so a rejected edit can be re-shown with the text the owner typed.
+const renderNote = (res, deck, card, extra = {}) =>
+  res.render('cardNote', { title: `${card.name} — ${deck.name}`, deck: deck.toObject(), card, noteMax: NOTE_MAX, ...extra });
+
+router.get('/decks/:id/cards/:scryfallId/note', requireAuth, async (req, res, next) => {
+  try {
+    const found = await findOwnedCard(req);
+    if (!found) return res.status(404).render('404', { title: 'Not Found' });
+    renderNote(res, found.deck, found.card.toObject());
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/decks/:id/cards/:scryfallId/note', requireAuth, async (req, res, next) => {
+  try {
+    const found = await findOwnedCard(req);
+    if (!found) return res.status(404).render('404', { title: 'Not Found' });
+    const { deck, card } = found;
+
+    const note = (typeof req.body.note === 'string' ? req.body.note : '').trim();
+    if (note.length > NOTE_MAX) {
+      return renderNote(res.status(400), deck, { ...card.toObject(), note }, {
+        noteError: `Notes can be at most ${NOTE_MAX} characters.`,
+      });
+    }
+    card.note = note;
+    await deck.save();
+    res.redirect(`/decks/${deck._id}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
   try {
     const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
@@ -238,6 +281,10 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
     const commanderCard = commander && isCommanderDeck ? found.get(commander.toLowerCase()) : undefined;
     if (byId.size === 0 && !commanderCard) return fail('No cards were imported — none of those names matched a card.', notFound);
 
+    // Carry notes over to cards that survive the import (matched by name, since
+    // the pasted list may name a different printing).
+    const notes = new Map(deck.cards.filter((c) => c.note).map((c) => [c.name.toLowerCase(), c.note]));
+    for (const c of byId.values()) c.note = notes.get(c.name.toLowerCase()) ?? '';
     deck.cards = [...byId.values()];
     if (commanderCard) {
       deck.commander = commanderCard.name;

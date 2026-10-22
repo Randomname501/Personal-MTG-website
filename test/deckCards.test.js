@@ -472,4 +472,79 @@ test('a commander that is also in the card list is counted and listed once', asy
   assert.doesNotMatch(res.text, /<h3>Creatures/);
 });
 
+// Tess owns a Modern deck holding one Counterspell; Uma is a stranger.
+const notesSetup = async () => {
+  const tess = makeClient();
+  await tess.request('POST', '/register', { username_input: 'Tess', password_input: 'hunter2hunter' });
+  await tess.request('POST', '/decks', { name: 'TessNotes', format: 'Modern' });
+  const deck = await Deck.findOne({ name: 'TessNotes' });
+  await tess.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+  return { tess, deck };
+};
+let notes;
+
+test('the owner can write a note on a card and sees it marked on the deck page', async () => {
+  notes = await notesSetup();
+  const { tess, deck } = notes;
+  const notePath = `/decks/${deck._id}/cards/abc-123/note`;
+
+  const page = await tess.request('GET', notePath);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /http:\/\/img\/cs\.jpg/); // full card image
+  assert.match(page.text, /<textarea[^>]*name="note"/);
+
+  const save = await tess.request('POST', notePath, { note: '  Hold up for board wipes  ' });
+  assert.equal(save.status, 302);
+  assert.equal(save.location, `/decks/${deck._id}`);
+  assert.equal((await Deck.findOne({ name: 'TessNotes' })).cards[0].note, 'Hold up for board wipes');
+
+  const detail = await tess.request('GET', `/decks/${deck._id}`);
+  assert.match(detail.text, new RegExp(`href="${notePath}"`));
+  assert.match(detail.text, /📝/);
+  assert.match((await tess.request('GET', notePath)).text, /Hold up for board wipes/);
+});
+
+test('notes are hidden from and closed to anyone but the owner', async () => {
+  const { deck } = notes;
+  const uma = makeClient();
+  await uma.request('POST', '/register', { username_input: 'Uma', password_input: 'hunter2hunter' });
+  const notePath = `/decks/${deck._id}/cards/abc-123/note`;
+
+  assert.equal((await uma.request('GET', notePath)).status, 404);
+  assert.equal((await uma.request('POST', notePath, { note: 'mine now' })).status, 404);
+  const detail = await uma.request('GET', `/decks/${deck._id}`);
+  assert.doesNotMatch(detail.text, /\/note"/);
+  assert.doesNotMatch(detail.text, /📝|Hold up for board wipes/);
+  assert.equal((await Deck.findOne({ name: 'TessNotes' })).cards[0].note, 'Hold up for board wipes');
+});
+
+test('a note over 2000 characters is rejected and an empty note clears it', async () => {
+  const { tess, deck } = notes;
+  const notePath = `/decks/${deck._id}/cards/abc-123/note`;
+
+  const tooLong = await tess.request('POST', notePath, { note: 'x'.repeat(2001) });
+  assert.equal(tooLong.status, 400);
+  assert.match(tooLong.text, /2000 characters/);
+  assert.equal((await Deck.findOne({ name: 'TessNotes' })).cards[0].note, 'Hold up for board wipes');
+
+  await tess.request('POST', notePath, { note: '   ' });
+  assert.equal((await Deck.findOne({ name: 'TessNotes' })).cards[0].note, '');
+  assert.doesNotMatch((await tess.request('GET', `/decks/${deck._id}`)).text, /📝/);
+});
+
+test('a note page for a card not in the deck is not found', async () => {
+  const { tess, deck } = notes;
+  assert.equal((await tess.request('GET', `/decks/${deck._id}/cards/not-in-deck/note`)).status, 404);
+  assert.equal((await tess.request('POST', `/decks/${deck._id}/cards/not-in-deck/note`, { note: 'x' })).status, 404);
+});
+
+test('importing a decklist keeps notes on cards that are still in the list', async () => {
+  const { tess, deck } = notes;
+  await tess.request('POST', `/decks/${deck._id}/cards/abc-123/note`, { note: 'Keep me' });
+  await tess.request('POST', `/decks/${deck._id}/import`, { decklist: '2 Counterspell' });
+  const updated = await Deck.findOne({ name: 'TessNotes' });
+  assert.equal(updated.cards[0].quantity, 2);
+  assert.equal(updated.cards[0].note, 'Keep me');
+});
+
 export { makeClient, aliceDeck };

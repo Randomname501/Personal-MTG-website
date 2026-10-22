@@ -1293,3 +1293,13 @@ main:not(.landing) h2 {
 .deck-import summary { cursor: pointer; font-family: 'Cinzel', serif; font-weight: 700; }
 .deck-import textarea { width: 100%; font-family: monospace; margin: 0.4rem 0 0.8rem; }
 .import-result { border-left: 4px solid var(--mana-u); padding: 0.4rem 0.8rem; margin: 0.6rem 0; }
+
+.card-note { display: flex; gap: 1.6rem; align-items: flex-start; }
+.card-note__image { width: 16rem; max-width: 45%; border-radius: 12px; box-shadow: var(--shadow-card); }
+.card-note__form { flex: 1; min-width: 0; }
+.card-note__form textarea { width: 100%; margin: 0.4rem 0 0.8rem; }
+.cardlist__note { font-size: 0.8rem; }
+@media (max-width: 520px) {
+  .card-note { flex-direction: column; }
+  .card-note__image { max-width: 70%; }
+}
