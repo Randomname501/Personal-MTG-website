@@ -1008,6 +1008,28 @@ main:not(.landing) h2 {
   pointer-events: none;
 }
 .cardlist li:hover .cardlist__preview, .cardlist li:focus-within .cardlist__preview { display: block; }
+/* Owner's note: pops up below the row while the card image pops up above it. */
+.cardlist__note-preview {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  width: 14rem;
+  max-height: 12rem;
+  overflow: hidden;
+  padding: 0.5rem 0.7rem;
+  background: #fffdf6;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+  font-size: 0.85rem;
+  font-weight: 400;
+  white-space: pre-line;
+  z-index: 10;
+  pointer-events: none;
+}
+.cardlist li:hover .cardlist__note-preview, .cardlist li:focus-within .cardlist__note-preview { display: block; }
 .group-toggle { color: var(--ink-soft); font-size: 0.9rem; margin: 0; }
 .group-toggle a[aria-current="true"] { font-weight: 700; text-decoration: none; color: inherit; }
 .current-commander { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }

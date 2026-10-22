@@ -501,6 +501,7 @@ test('the owner can write a note on a card and sees it marked on the deck page',
   const detail = await tess.request('GET', `/decks/${deck._id}`);
   assert.match(detail.text, new RegExp(`href="${notePath}"`));
   assert.match(detail.text, /📝/);
+  assert.match(detail.text, /class="cardlist__note-preview">Hold up for board wipes</); // shown on hover
   assert.match((await tess.request('GET', notePath)).text, /Hold up for board wipes/);
 });
 
