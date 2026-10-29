@@ -1,0 +1,16 @@
+<main>
+  <p><a href="/decks/{{deck._id}}">&larr; Back to {{deck.name}}</a></p>
+  <div class="card-note">
+    {{#if card.imageUrl}}
+      <img class="card-note__image" src="{{card.imageUrl}}" alt="{{card.name}}" />
+    {{/if}}
+    <form class="card-note__form" action="/decks/{{deck._id}}/cards/{{card.scryfallId}}/note" method="POST">
+      <h1>{{card.name}}</h1>
+      <p class="deck-meta">{{card.manaCost}} &middot; {{card.typeLine}} &middot; {{card.quantity}} in deck</p>
+      {{#if noteError}}<p class="error-message" role="alert">{{noteError}}</p>{{/if}}
+      <label for="note">Your note (only you can see this)</label>
+      <textarea name="note" id="note" rows="8" class="form-input" maxlength="{{noteMax}}">{{card.note}}</textarea>
+      <button type="submit" class="submit-button">Save note</button>
+    </form>
+  </div>
+</main>

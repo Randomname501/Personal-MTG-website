@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
-import { getCardInsights, groupCards } from '../lib/cardInsights.js';
+import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
 import { parseDecklist } from '../lib/decklist.js';
 
@@ -117,12 +117,15 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     // The commander lives outside deck.cards; it joins the list (and the count)
     // only on Commander-format decks.
     const hasCommander = deck.format === 'Commander' && Boolean(deck.commander);
-    const cardCount = (deck.cards || []).reduce((sum, c) => sum + c.quantity, 0) + (hasCommander ? 1 : 0);
-    const insights = getCardInsights(deck.cards || []);
+    const cards = hasCommander ? withoutCommander(deck.cards, deck.commander) : deck.cards || [];
+    const cardCount = cards.reduce((sum, c) => sum + c.quantity, 0) + (hasCommander ? 1 : 0);
+    const insights = getCardInsights(cards);
     const groupMode = ['type', 'cmc'].includes(req.query.group) ? req.query.group : 'type';
-    const cardGroups = groupCards(deck.cards, {
+    // If the commander is also stored as a card, its row keeps that card's id and note.
+    const commanderAsCard = hasCommander && (deck.cards || []).find((c) => c.name.toLowerCase() === deck.commander.toLowerCase());
+    const cardGroups = groupCards(cards, {
       mode: groupMode,
-      commander: hasCommander ? { name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
+      commander: hasCommander ? { ...commanderAsCard, name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
     });
     res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode });
   } catch (err) {
@@ -208,6 +211,49 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
 // matches nothing leaves the deck as it was.
 const MAX_IMPORT_NAMES = 250;
 
+// Owner-only page for a private note on one card in a deck.
+const NOTE_MAX = 2000;
+
+const findOwnedCard = async (req) => {
+  const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+  const card = deck?.cards.find((c) => c.scryfallId === req.params.scryfallId);
+  return card ? { deck, card } : null;
+};
+
+// `card` is a plain object so a rejected edit can be re-shown with the text the owner typed.
+const renderNote = (res, deck, card, extra = {}) =>
+  res.render('cardNote', { title: `${card.name} — ${deck.name}`, deck: deck.toObject(), card, noteMax: NOTE_MAX, ...extra });
+
+router.get('/decks/:id/cards/:scryfallId/note', requireAuth, async (req, res, next) => {
+  try {
+    const found = await findOwnedCard(req);
+    if (!found) return res.status(404).render('404', { title: 'Not Found' });
+    renderNote(res, found.deck, found.card.toObject());
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/decks/:id/cards/:scryfallId/note', requireAuth, async (req, res, next) => {
+  try {
+    const found = await findOwnedCard(req);
+    if (!found) return res.status(404).render('404', { title: 'Not Found' });
+    const { deck, card } = found;
+
+    const note = (typeof req.body.note === 'string' ? req.body.note : '').trim();
+    if (note.length > NOTE_MAX) {
+      return renderNote(res.status(400), deck, { ...card.toObject(), note }, {
+        noteError: `Notes can be at most ${NOTE_MAX} characters.`,
+      });
+    }
+    card.note = note;
+    await deck.save();
+    res.redirect(`/decks/${deck._id}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
   try {
     const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
@@ -218,14 +264,15 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
     const isCommanderDeck = deck.format === 'Commander';
     // A commander line only means something on a Commander deck; elsewhere it's an ordinary card.
     const wanted = commander && !isCommanderDeck ? [...cards, { name: commander, quantity: 1 }] : cards;
-    const names = [...wanted.map((c) => c.name), ...(commander && isCommanderDeck ? [commander] : [])];
+    const names = [...cards.map((c) => c.name), ...(commander ? [commander] : [])];
 
     const fail = (message, notFound = []) =>
       renderManager(res, deck, { importResult: { message, notFound }, importText: decklist });
     if (names.length === 0) return fail('No cards were imported — paste a decklist like "1 Sol Ring".');
     if (names.length > MAX_IMPORT_NAMES) return fail(`No cards were imported — that list has more than ${MAX_IMPORT_NAMES} different cards.`);
 
-    const { found, notFound } = await getCardsByNames(names);
+    const found = await getCardsByNames(names);
+    const notFound = names.filter((n) => !found.has(n.toLowerCase()));
     const byId = new Map(); // two spellings of one card (e.g. a DFC's front face) merge
     for (const { name, quantity } of wanted) {
       const card = found.get(name.toLowerCase());
@@ -237,6 +284,14 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
     const commanderCard = commander && isCommanderDeck ? found.get(commander.toLowerCase()) : undefined;
     if (byId.size === 0 && !commanderCard) return fail('No cards were imported — none of those names matched a card.', notFound);
 
+    // Carry notes over to cards that survive the import (matched by name, since
+    // the pasted list may name a different printing).
+    const notes = new Map(deck.cards.filter((c) => c.note).map((c) => [c.name.toLowerCase(), c.note]));
+    // The commander stays out of the card list, unless its card carries a note to keep.
+    if (commanderCard && notes.has(commanderCard.name.toLowerCase()) && !byId.has(commanderCard.scryfallId)) {
+      byId.set(commanderCard.scryfallId, { ...commanderCard, quantity: 1 });
+    }
+    for (const c of byId.values()) c.note = notes.get(c.name.toLowerCase()) ?? '';
     deck.cards = [...byId.values()];
     if (commanderCard) {
       deck.commander = commanderCard.name;

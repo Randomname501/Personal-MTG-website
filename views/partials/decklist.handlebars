@@ -6,7 +6,10 @@
         {{#each this.cards}}
           <li{{#unless ../../editable}} tabindex="0"{{/unless}}>
             <span class="cardlist__qty">{{this.quantity}}</span>
-            <span class="cardlist__name">{{this.name}}</span>
+            {{#if ../../linkNotes}}{{#if this.scryfallId}}
+              <a class="cardlist__name" href="/decks/{{../../deckId}}/cards/{{this.scryfallId}}/note">{{this.name}}</a>{{#if this.note}} <span class="cardlist__note" title="Has a note">📝</span><span class="cardlist__note-preview">{{this.note}}</span>{{/if}}
+            {{else}}<span class="cardlist__name">{{this.name}}</span>{{/if}}
+            {{else}}<span class="cardlist__name">{{this.name}}</span>{{/if}}
             <span class="cardlist__meta">{{this.manaCost}}</span>
             {{#if this.imageUrl}}<img class="cardlist__preview" src="{{this.imageUrl}}" alt="" loading="lazy" />{{/if}}
             {{#if ../../editable}}{{#if this.scryfallId}}

@@ -1008,6 +1008,32 @@ main:not(.landing) h2 {
   pointer-events: none;
 }
 .cardlist li:hover .cardlist__preview, .cardlist li:focus-within .cardlist__preview { display: block; }
+/* Owner's note: pops up beside the card image (which is 14rem wide, centred
+   above the row), bottom-aligned with it. */
+.cardlist__note-preview {
+  display: none;
+  position: absolute;
+  left: calc(50% + 7.5rem);
+  bottom: 100%;
+  width: 14rem;
+  max-height: 12rem;
+  overflow: hidden;
+  padding: 0.5rem 0.7rem;
+  background: #fffdf6;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+  font-size: 0.85rem;
+  font-weight: 400;
+  white-space: pre-line;
+  z-index: 10;
+  pointer-events: none;
+}
+.cardlist li:hover .cardlist__note-preview, .cardlist li:focus-within .cardlist__note-preview { display: block; }
+/* No room beside the image on narrow screens: drop the note below the row. */
+@media (max-width: 860px) {
+  .cardlist__note-preview { left: 50%; bottom: auto; top: 100%; transform: translateX(-50%); }
+}
 .group-toggle { color: var(--ink-soft); font-size: 0.9rem; margin: 0; }
 .group-toggle a[aria-current="true"] { font-weight: 700; text-decoration: none; color: inherit; }
 .current-commander { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }
@@ -1293,3 +1319,13 @@ main:not(.landing) h2 {
 .deck-import summary { cursor: pointer; font-family: 'Cinzel', serif; font-weight: 700; }
 .deck-import textarea { width: 100%; font-family: monospace; margin: 0.4rem 0 0.8rem; }
 .import-result { border-left: 4px solid var(--mana-u); padding: 0.4rem 0.8rem; margin: 0.6rem 0; }
+
+.card-note { display: flex; gap: 1.6rem; align-items: flex-start; }
+.card-note__image { width: 16rem; max-width: 45%; border-radius: 12px; box-shadow: var(--shadow-card); }
+.card-note__form { flex: 1; min-width: 0; }
+.card-note__form textarea { width: 100%; margin: 0.4rem 0 0.8rem; }
+.cardlist__note { font-size: 0.8rem; }
+@media (max-width: 520px) {
+  .card-note { flex-direction: column; }
+  .card-note__image { max-width: 70%; }
+}
