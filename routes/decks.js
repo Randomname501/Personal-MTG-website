@@ -121,9 +121,11 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const cardCount = cards.reduce((sum, c) => sum + c.quantity, 0) + (hasCommander ? 1 : 0);
     const insights = getCardInsights(cards);
     const groupMode = ['type', 'cmc'].includes(req.query.group) ? req.query.group : 'type';
+    // If the commander is also stored as a card, its row keeps that card's id and note.
+    const commanderAsCard = hasCommander && (deck.cards || []).find((c) => c.name.toLowerCase() === deck.commander.toLowerCase());
     const cardGroups = groupCards(cards, {
       mode: groupMode,
-      commander: hasCommander ? { name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
+      commander: hasCommander ? { ...commanderAsCard, name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
     });
     res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode });
   } catch (err) {

@@ -468,8 +468,14 @@ test('a commander that is also in the card list is counted and listed once', asy
 
   const res = await sam.request('GET', `/decks/${deck._id}`);
   assert.match(res.text, /Cards \(1\)/);
-  assert.equal(res.text.match(/cardlist__name">Atraxa/g).length, 1);
+  assert.equal(res.text.match(/cardlist__name"[^>]*>Atraxa/g).length, 1);
   assert.doesNotMatch(res.text, /<h3>Creatures/);
+
+  // A note on that card stays readable and editable on the commander row.
+  await sam.request('POST', `/decks/${deck._id}/cards/atraxa-1/note`, { note: 'Proliferate everything' });
+  const withNote = await sam.request('GET', `/decks/${deck._id}`);
+  assert.match(withNote.text, new RegExp(`href="/decks/${deck._id}/cards/atraxa-1/note"`));
+  assert.match(withNote.text, /class="cardlist__note-preview">Proliferate everything</);
 });
 
 // Tess owns a Modern deck holding one Counterspell; Uma is a stranger.
