@@ -287,6 +287,10 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
     // Carry notes over to cards that survive the import (matched by name, since
     // the pasted list may name a different printing).
     const notes = new Map(deck.cards.filter((c) => c.note).map((c) => [c.name.toLowerCase(), c.note]));
+    // The commander stays out of the card list, unless its card carries a note to keep.
+    if (commanderCard && notes.has(commanderCard.name.toLowerCase()) && !byId.has(commanderCard.scryfallId)) {
+      byId.set(commanderCard.scryfallId, { ...commanderCard, quantity: 1 });
+    }
     for (const c of byId.values()) c.note = notes.get(c.name.toLowerCase()) ?? '';
     deck.cards = [...byId.values()];
     if (commanderCard) {

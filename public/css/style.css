@@ -1030,6 +1030,10 @@ main:not(.landing) h2 {
   pointer-events: none;
 }
 .cardlist li:hover .cardlist__note-preview, .cardlist li:focus-within .cardlist__note-preview { display: block; }
+/* No room beside the image on narrow screens: drop the note below the row. */
+@media (max-width: 860px) {
+  .cardlist__note-preview { left: 50%; bottom: auto; top: 100%; transform: translateX(-50%); }
+}
 .group-toggle { color: var(--ink-soft); font-size: 0.9rem; margin: 0; }
 .group-toggle a[aria-current="true"] { font-weight: 700; text-decoration: none; color: inherit; }
 .current-commander { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }

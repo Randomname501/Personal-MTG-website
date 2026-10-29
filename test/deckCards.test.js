@@ -441,6 +441,20 @@ test('importing into a Commander deck sets the commander and keeps it out of the
   assert.deepEqual(updated.cards.map((c) => c.name), ['Counterspell']);
 });
 
+test('re-importing keeps a note on the commander card', async () => {
+  const deck = await Deck.findOne({ name: 'QuinsImport' });
+  deck.cards.push({ scryfallId: 'atraxa-1', name: "Atraxa, Praetors' Voice", quantity: 1, note: 'Proliferate everything' });
+  await deck.save();
+  const quin = makeClient();
+  await quin.request('POST', '/login', { username_input: 'Quin', password_input: 'hunter2hunter' });
+
+  await quin.request('POST', `/decks/${deck._id}/import`, {
+    decklist: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Counterspell",
+  });
+  const updated = await Deck.findOne({ name: 'QuinsImport' });
+  assert.equal(updated.cards.find((c) => c.scryfallId === 'atraxa-1').note, 'Proliferate everything');
+});
+
 test('an import where nothing matches leaves the deck untouched', async () => {
   const deck = await aliceDeck(); // holds Counterspell x2
   const res = await alice.request('POST', `/decks/${deck._id}/import`, { decklist: '1 Made Up Card' });
