@@ -133,16 +133,16 @@ test('getCardByName throws on other Scryfall errors', async () => {
 });
 
 test('getCardsByNames matches names case-insensitively, including a DFC front face', async () => {
-  const { found, notFound } = await getCardsByNames(['COUNTERSPELL', 'Delver of Secrets', 'Nope Card']);
+  const found = await getCardsByNames(['COUNTERSPELL', 'Delver of Secrets', 'Nope Card']);
   assert.equal(found.get('counterspell').scryfallId, 'abc-123');
   assert.equal(found.get('delver of secrets').scryfallId, 'dfc-1');
-  assert.deepEqual(notFound, ['Nope Card']);
+  assert.equal(found.has('nope card'), false);
 });
 
 test('getCardsByNames batches requests at 75 names each', async () => {
   collectionCalls = 0;
   const names = Array.from({ length: 80 }, (_, i) => `Card ${i}`);
-  const { notFound } = await getCardsByNames(names);
+  const found = await getCardsByNames(names);
   assert.equal(collectionCalls, 2);
-  assert.equal(notFound.length, 80);
+  assert.equal(found.size, 0);
 });

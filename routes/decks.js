@@ -262,14 +262,15 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
     const isCommanderDeck = deck.format === 'Commander';
     // A commander line only means something on a Commander deck; elsewhere it's an ordinary card.
     const wanted = commander && !isCommanderDeck ? [...cards, { name: commander, quantity: 1 }] : cards;
-    const names = [...wanted.map((c) => c.name), ...(commander && isCommanderDeck ? [commander] : [])];
+    const names = [...cards.map((c) => c.name), ...(commander ? [commander] : [])];
 
     const fail = (message, notFound = []) =>
       renderManager(res, deck, { importResult: { message, notFound }, importText: decklist });
     if (names.length === 0) return fail('No cards were imported — paste a decklist like "1 Sol Ring".');
     if (names.length > MAX_IMPORT_NAMES) return fail(`No cards were imported — that list has more than ${MAX_IMPORT_NAMES} different cards.`);
 
-    const { found, notFound } = await getCardsByNames(names);
+    const found = await getCardsByNames(names);
+    const notFound = names.filter((n) => !found.has(n.toLowerCase()));
     const byId = new Map(); // two spellings of one card (e.g. a DFC's front face) merge
     for (const { name, quantity } of wanted) {
       const card = found.get(name.toLowerCase());
