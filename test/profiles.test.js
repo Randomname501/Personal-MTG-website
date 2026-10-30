@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import { app } from '../app.js';
 import { connectMongo } from '../config/db.js';
-import { Deck, GameRecord, User } from '../models/index.js';
+import { Comment, Deck, GameRecord, User } from '../models/index.js';
 
 // A client is one isolated cookie jar + request helper, so we can drive the app
 // as two different logged-in users (and an anonymous one) in the same file.
@@ -257,4 +257,67 @@ test("the owner's deck page offers the visibility options with the current one s
   assert.match(res.text, /<option value="friends" selected>/);
   assert.match(res.text, /<option value="public">/);
   assert.match(res.text, /<option value="private">/);
+});
+
+const friendUp = async (a, aName, b, bName) => {
+  await a.request('POST', `/users/${bName}/friend`);
+  await b.request('POST', `/users/${aName}/accept`);
+};
+
+test('a friend can comment and the comment shows newest first with the author linked', async () => {
+  const cora = await registerClient('Cora');
+  await friendUp(cora, 'Cora', tess, 'Tess');
+  await cora.request('POST', '/users/Tess/comments', { body: 'first-comment-zz' });
+  const r = await cora.request('POST', '/users/Tess/comments', { body: 'second-comment-zz' });
+  assert.equal(r.status, 302);
+  assert.equal(r.location, '/users/Tess');
+  const page = (await anon.request('GET', '/users/Tess')).text;
+  assert.ok(page.indexOf('second-comment-zz') > -1 && page.indexOf('second-comment-zz') < page.indexOf('first-comment-zz'));
+  assert.match(page, /href="\/users\/Cora"/);
+});
+
+test('comments reject bad bodies, non-friends and non-authors', async () => {
+  const dara = await registerClient('Dara');
+  await friendUp(dara, 'Dara', tess, 'Tess');
+  const before = await Comment.countDocuments();
+  const blank = await dara.request('POST', '/users/Tess/comments', { body: '   ' });
+  assert.equal(blank.status, 400);
+  assert.match(blank.text, /Comments must be 1–1000 characters\./);
+  const long = await dara.request('POST', '/users/Tess/comments', { body: 'x'.repeat(1001) });
+  assert.equal(long.status, 400);
+  assert.match(long.text, /xxxxxxxxxx/); // text kept
+  const stranger = await registerClient('Eliot');
+  await stranger.request('POST', '/users/Tess/comments', { body: 'sneaky' });
+  assert.equal(await Comment.countDocuments(), before);
+
+  await dara.request('POST', '/users/Tess/comments', { body: 'keep-me-zz' });
+  const c = await Comment.findOne({ body: 'keep-me-zz' });
+  await tess.request('POST', `/comments/${c._id}/delete`, { back: '/users/Tess' });
+  assert.ok(await Comment.exists({ _id: c._id }));
+  const bad = await dara.request('POST', '/comments/not-an-id/delete');
+  assert.equal(bad.status, 302);
+});
+
+test('the author can delete their comment and comments survive an unfriend', async () => {
+  const fay = await registerClient('Fay');
+  await friendUp(fay, 'Fay', tess, 'Tess');
+  await fay.request('POST', '/users/Tess/comments', { body: 'gone-zz' });
+  await fay.request('POST', '/users/Tess/comments', { body: 'stays-zz' });
+  const gone = await Comment.findOne({ body: 'gone-zz' });
+  const del = await fay.request('POST', `/comments/${gone._id}/delete`, { back: '/users/Tess' });
+  assert.equal(del.location, '/users/Tess');
+  assert.equal(await Comment.exists({ _id: gone._id }), null);
+  await tess.request('POST', '/users/Fay/unfriend');
+  const page = (await fay.request('GET', '/users/Tess')).text;
+  assert.match(page, /stays-zz/);
+  assert.doesNotMatch(page, /name="body"/);
+});
+
+test('comment bodies are escaped', async () => {
+  const gus = await registerClient('Gus');
+  await friendUp(gus, 'Gus', tess, 'Tess');
+  await gus.request('POST', '/users/Tess/comments', { body: '<script>x</script>' });
+  const page = (await tess.request('GET', '/users/Tess')).text;
+  assert.match(page, /&lt;script&gt;/);
+  assert.doesNotMatch(page, /<script>x<\/script>/);
 });

@@ -1340,3 +1340,8 @@ main:not(.landing) h2 {
 .hidden-deck { filter: blur(3px); user-select: none; }
 .visibility-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 4px; padding: 0.05rem 0.4rem; margin-left: 0.4rem; }
 @media (max-width: 860px) { .profile-layout { grid-template-columns: 1fr; } }
+
+.comment-form textarea { width: 100%; box-sizing: border-box; margin-bottom: 0.5rem; }
+.comment { border-top: 1px solid rgba(128, 128, 128, 0.3); padding: 0.5rem 0; }
+.comment-meta { font-size: 0.85em; opacity: 0.8; margin: 0 0 0.25rem; }
+.comment-body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 0.25rem; }

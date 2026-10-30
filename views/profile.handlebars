@@ -65,7 +65,26 @@
 
       <section class="profile-comments">
         <h2>Comments</h2>
+        {{#if error}}<p class="error-message" role="alert">{{error}}</p>{{/if}}
+        {{#if (eq relation "friends")}}
+          <form action="{{profilePath profile.username}}/comments" method="POST" class="comment-form">
+            <textarea name="body" rows="3" maxlength="1000" required>{{commentDraft}}</textarea>
+            <button type="submit" class="button">Post comment</button>
+          </form>
+        {{/if}}
         {{#unless comments.length}}<p>No comments yet.</p>{{/unless}}
+        {{#each comments}}
+          <article class="comment">
+            <p class="comment-meta"><a href="{{profilePath this.author.username}}">{{this.author.username}}</a> &middot; {{formatDate this.createdAt}}</p>
+            <p class="comment-body">{{this.body}}</p>
+            {{#if this.canDelete}}
+              <form action="/comments/{{this._id}}/delete" method="POST">
+                <input type="hidden" name="back" value="{{profilePath ../profile.username}}">
+                <button type="submit" class="button cancel-button">Delete</button>
+              </form>
+            {{/if}}
+          </article>
+        {{/each}}
       </section>
     </aside>
   </div>
