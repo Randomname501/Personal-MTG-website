@@ -12,6 +12,8 @@ export const DECK_FORMATS = [
   'Other',
 ];
 
+export const DECK_VISIBILITY = ['public', 'friends', 'private'];
+
 export const MTG_COLORS = ['W', 'U', 'B', 'R', 'G'];
 
 // One card entry embedded in a deck — a snapshot of Scryfall data taken on add,
@@ -75,6 +77,7 @@ const deckSchema = new mongoose.Schema(
     },
     // Card list, built from Scryfall via the deck's Manage Cards page.
     cards: [cardSchema],
+    visibility: { type: String, enum: DECK_VISIBILITY, default: 'public' },
   },
   { timestamps: true }
 );
