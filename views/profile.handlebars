@@ -2,7 +2,7 @@
   <header class="profile-head">
     <h1>{{profile.username}}</h1>
     <p class="profile-meta">
-      Joined {{formatDate profile.createdAt}} &middot; {{friends.length}} friends{{#if summary.totalGames}} &middot; {{summary.winRate}}% win rate{{/if}}
+      Joined {{formatDate profile.createdAt}} &middot; {{friends.length}} {{#if (eq friends.length 1)}}friend{{else}}friends{{/if}}{{#if summary.totalGames}} &middot; {{summary.winRate}}% win rate{{/if}}
     </p>
     {{#if (eq relation "anon")}}
       <a class="button" href="/login">Log in to add friend</a>

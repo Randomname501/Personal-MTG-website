@@ -28,7 +28,7 @@ const profileView = async (profile, viewer) => {
     GameRecord.find({ user: profile._id })
       .sort({ createdAt: -1 })
       .limit(10)
-      .populate('deck')
+      .populate('deck', 'name owner visibility')
       .lean(),
     User.find({ _id: { $in: profile.friends ?? [] } }).select('username').sort({ username: 1 }).lean(),
     Comment.find({ profile: profile._id }).sort({ createdAt: -1 }).populate('author', 'username').lean(),

@@ -321,3 +321,24 @@ test('comment bodies are escaped', async () => {
   assert.match(page, /&lt;script&gt;/);
   assert.doesNotMatch(page, /<script>x<\/script>/);
 });
+
+test("a deck page links its owner's profile", async () => {
+  const pd = await Deck.findOne({ name: 'PubDeckZ' });
+  const viewer = await registerClient('Rhea');
+  assert.match((await viewer.request('GET', `/decks/${pd._id}`)).text, /href="\/users\/Tess"/);
+  const own = await tess.request('GET', `/decks/${pd._id}`);
+  assert.match(own.text, /Manage Cards/);
+});
+
+test("a friend sees a friends-only deck's name on the deck leaderboard; a stranger sees the placeholder", async () => {
+  const sven = await registerClient('Sven');
+  const tara = await registerClient('Tara');
+  await befriend(tess, 'Tess', sven, 'Sven');
+  const fd = await Deck.findOne({ name: 'FriendDeckZ' });
+  await GameRecord.create({ user: tessUser._id, deck: fd._id, result: 'win', opponents: [{ name: 'Zed', deck: 'Goblins' }] });
+  const friendLb = await sven.request('GET', '/deckLeaderboard');
+  assert.match(friendLb.text, /FriendDeckZ/);
+  const strangerLb = await tara.request('GET', '/deckLeaderboard');
+  assert.doesNotMatch(strangerLb.text, /FriendDeckZ/);
+  assert.match(strangerLb.text, /Hidden deck/);
+});

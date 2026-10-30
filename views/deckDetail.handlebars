@@ -7,6 +7,7 @@
     <div class="deck-hero__info">
       <h1>{{deck.name}}</h1>
       <p class="deck-meta">
+        By <a href="{{profilePath deck.owner.username}}">{{deck.owner.username}}</a> &middot;
         {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}{{#if deck.colors.length}} &middot; {{#each deck.colors}}{{this}} {{/each}}{{/if}}
       </p>
       {{#if deck.description}}<p class="deck-hero__desc">{{deck.description}}</p>{{/if}}
@@ -15,9 +16,9 @@
           <a href="/decks/{{deck._id}}/cards" class="button">Manage Cards</a>
           <form action="/decks/{{deck._id}}/visibility" method="POST" style="display:inline">
             <select name="visibility" aria-label="Deck visibility">
-              {{#each visibilities}}
-                <option value="{{this}}"{{#if (eq this ../deck.visibility)}} selected{{/if}}>{{this}}</option>
-              {{/each}}
+              <option value="public"{{#if (eq deck.visibility "public")}} selected{{/if}}>Public</option>
+              <option value="friends"{{#if (eq deck.visibility "friends")}} selected{{/if}}>Friends</option>
+              <option value="private"{{#if (eq deck.visibility "private")}} selected{{/if}}>Private</option>
             </select>
             <button type="submit" class="button">Set visibility</button>
           </form>

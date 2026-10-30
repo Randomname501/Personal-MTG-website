@@ -109,12 +109,12 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(404).render('404', { title: 'Not Found' });
     }
-    const deck = await Deck.findById(req.params.id).lean();
+    const deck = await Deck.findById(req.params.id).populate('owner', 'username').lean();
     if (!deck || !canSeeDeck(deck, req.currentUser)) {
       return res.status(404).render('404', { title: 'Not Found' });
     }
     const stats = await getDeckStats(deck._id);
-    const isOwner = req.currentUser._id.toString() === deck.owner.toString();
+    const isOwner = req.currentUser._id.toString() === deck.owner._id.toString();
     const isTracked = (req.currentUser.trackedDecks || []).some((t) => t.toString() === deck._id.toString());
     // The commander lives outside deck.cards; it joins the list (and the count)
     // only on Commander-format decks.
