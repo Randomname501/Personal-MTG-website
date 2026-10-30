@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema(
         ref: 'Deck',
       },
     ],
+    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    // Incoming friend-request senders.
+    friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }
 );

@@ -10,8 +10,8 @@
       {{#each leaderboard}}
         <li class="leader-card{{#if this.tier}} leader-card--{{this.tier}}{{/if}}">
           <span class="leader-card__rank">{{this.rank}}</span>
-          <h2 class="leader-card__name">{{this.deckName}}</h2>
-          <p class="leader-card__sub">{{this.owner}}</p>
+          <h2 class="leader-card__name">{{#if this.hidden}}<span class="hidden-deck">Hidden deck</span>{{else}}{{this.deckName}}{{/if}}</h2>
+          <p class="leader-card__sub"><a href="{{profilePath this.owner}}">{{this.owner}}</a></p>
 
           <p class="leader-card__ratio">{{this.winLossRatio}}</p>
           <p class="leader-card__ratio-label">Win / Loss</p>

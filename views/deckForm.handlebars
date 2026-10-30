@@ -19,6 +19,15 @@
     </div>
 
     <div class="form-group">
+      <label for="visibility">Visibility</label>
+      <select name="visibility" id="visibility">
+        <option value="public">Public</option>
+        <option value="friends"{{#if (eq values.visibility "friends")}} selected{{/if}}>Friends</option>
+        <option value="private"{{#if (eq values.visibility "private")}} selected{{/if}}>Private</option>
+      </select>
+    </div>
+
+    <div class="form-group">
       <span>Color Identity</span>
       <div class="color-checkboxes">
         {{#each colorOptions}}
