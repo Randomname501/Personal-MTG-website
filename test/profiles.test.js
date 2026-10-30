@@ -219,6 +219,18 @@ test('friends-only and private decks are hidden from Browse, deck pages and trac
   assert.equal((await kira.request('GET', `/decks/${pd._id}`)).status, 404);
 });
 
+test("a one-sided friends entry (accept/unfriend race) unlocks no deck, comment or friends listing", async () => {
+  const lev = await registerClient('Lev');
+  await User.updateOne({ username: 'Lev' }, { friends: [tessUser._id] });
+  const fd = await Deck.findOne({ name: 'FriendDeckZ' });
+  assert.equal((await lev.request('GET', `/decks/${fd._id}`)).status, 404);
+  assert.doesNotMatch((await lev.request('GET', '/decks')).text, /FriendDeckZ/);
+  const before = await Comment.countDocuments();
+  await lev.request('POST', '/users/Tess/comments', { body: 'one-sided' });
+  assert.equal(await Comment.countDocuments(), before);
+  assert.doesNotMatch((await anon.request('GET', '/users/Lev')).text, /href="\/users\/Tess"/);
+});
+
 test('a tracked deck drops off the dashboard when access is lost and returns when regained', async () => {
   const lena = await registerClient('Lena');
   await befriend(tess, 'Tess', lena, 'Lena');
