@@ -30,7 +30,7 @@ const profileView = async (profile, viewer) => {
       .limit(10)
       .populate('deck', 'name owner visibility')
       .lean(),
-    User.find({ _id: { $in: profile.friends ?? [] } }).select('username').sort({ username: 1 }).lean(),
+    User.find({ _id: { $in: profile.friends ?? [] }, friends: profile._id }).select('username').sort({ username: 1 }).lean(),
     Comment.find({ profile: profile._id }).sort({ createdAt: -1 }).populate('author', 'username').lean(),
   ]);
 

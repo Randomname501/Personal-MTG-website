@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import { connectMongo } from '../config/db.js';
 import { User } from '../models/index.js';
-import { relation, sendRequest, acceptRequest, declineRequest, cancelRequest, unfriend } from '../lib/friends.js';
+import { relation, sendRequest, acceptRequest, declineRequest, cancelRequest, unfriend, mutualFriends } from '../lib/friends.js';
 
 before(async () => {
   process.env.MONGODB_URI = 'mongodb://localhost:27017/mtg_tracker_friends_unit_test';
@@ -69,6 +69,14 @@ test('unfriend removes both sides', async () => {
   await acceptRequest(b._id, a._id);
   await unfriend(a._id, b._id);
   assert.equal((await get(a)).friends.length + (await get(b)).friends.length, 0);
+});
+
+test('mutualFriends ignores a one-sided entry left by an accept/unfriend race', async () => {
+  const [a, b, c] = [await mk(), await mk(), await mk()];
+  await User.updateOne({ _id: a._id }, { friends: [b._id, c._id] });
+  await User.updateOne({ _id: c._id }, { friends: [a._id] });
+  assert.deepEqual((await mutualFriends(await get(a))).map(String), [String(c._id)]);
+  assert.deepEqual(await mutualFriends(await get(b)), []);
 });
 
 test('friend actions ignore self, duplicates and missing requests', async () => {
