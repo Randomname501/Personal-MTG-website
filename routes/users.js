@@ -1,6 +1,10 @@
 import express from 'express';
 import { User, Deck, GameRecord, opponentList } from '../models/index.js';
 import { getUserSummary } from '../lib/stats.js';
+import { requireAuth } from '../middleware/auth.js';
+import { profilePath } from '../lib/viewHelpers.js';
+import { safeBack } from '../lib/safeBack.js';
+import * as friendsLib from '../lib/friends.js';
 import { canSeeDeck, visibleDeckFilter } from '../lib/visibility.js';
 
 const router = express.Router();
@@ -48,11 +52,32 @@ router.get('/users/:username', async (req, res, next) => {
       games,
       friends: friends.map((f) => ({ username: f.username })),
       comments: [], // Task 5 fills this
-      relation: 'none', // Task 3 drives the friend button from this
+      relation: friendsLib.relation(viewer, profile),
     });
   } catch (err) {
     next(err);
   }
 });
+
+// POST /users/:username/<action>; each runs (viewerId, targetId) against lib/friends.
+const actions = {
+  friend: friendsLib.sendRequest,
+  cancel: friendsLib.cancelRequest,
+  accept: friendsLib.acceptRequest,
+  decline: friendsLib.declineRequest,
+  unfriend: friendsLib.unfriend,
+};
+for (const [name, fn] of Object.entries(actions)) {
+  router.post(`/users/:username/${name}`, requireAuth, async (req, res, next) => {
+    try {
+      const target = await findUserByName(req.params.username);
+      if (!target) return res.redirect('/dashboard');
+      await fn(req.currentUser._id, target._id);
+      res.redirect(safeBack(req.body.back, profilePath(target.username)));
+    } catch (err) {
+      next(err);
+    }
+  });
+}
 
 export { router as usersRouter };

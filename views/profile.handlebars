@@ -4,7 +4,20 @@
     <p class="profile-meta">
       Joined {{formatDate profile.createdAt}} &middot; {{friends.length}} friends{{#if summary.totalGames}} &middot; {{summary.winRate}}% win rate{{/if}}
     </p>
-    {{!-- Task 3: friend button goes here (driven by `relation`) --}}
+    {{#if (eq relation "anon")}}
+      <a class="button" href="/login">Log in to add friend</a>
+    {{else if (eq relation "none")}}
+      <form action="{{profilePath profile.username}}/friend" method="POST"><button type="submit" class="button">Add friend</button></form>
+    {{else if (eq relation "sent")}}
+      <form action="{{profilePath profile.username}}/cancel" method="POST"><span>Request sent</span> <button type="submit" class="button cancel-button">Cancel</button></form>
+    {{else if (eq relation "received")}}
+      <form action="{{profilePath profile.username}}/accept" method="POST" style="display:inline"><button type="submit" class="button">Accept</button></form>
+      <form action="{{profilePath profile.username}}/decline" method="POST" style="display:inline"><button type="submit" class="button cancel-button">Decline</button></form>
+    {{else if (eq relation "friends")}}
+      <details><summary>&#10003; Friends &#9662;</summary>
+        <form action="{{profilePath profile.username}}/unfriend" method="POST"><button type="submit" class="button cancel-button">Unfriend</button></form>
+      </details>
+    {{/if}}
   </header>
 
   <div class="profile-layout">

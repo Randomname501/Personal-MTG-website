@@ -15,6 +15,20 @@
     </section>
   {{/if}}
 
+  {{#if requesters.length}}
+    <section class="deck-section">
+      <h2>Friend requests</h2>
+      <ul class="profile-list">
+        {{#each requesters}}
+          <li><a href="{{profilePath this.username}}">{{this.username}}</a>
+            <form action="{{profilePath this.username}}/accept" method="POST" style="display:inline"><input type="hidden" name="back" value="/dashboard" /><button type="submit" class="button">Accept</button></form>
+            <form action="{{profilePath this.username}}/decline" method="POST" style="display:inline"><input type="hidden" name="back" value="/dashboard" /><button type="submit" class="button cancel-button">Decline</button></form>
+          </li>
+        {{/each}}
+      </ul>
+    </section>
+  {{/if}}
+
 <section class="deck-section">
     <div class="deck-section__head">
       <h2>My Decks</h2>

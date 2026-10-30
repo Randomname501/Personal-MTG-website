@@ -121,3 +121,42 @@ test('Browse and the player leaderboard link usernames to profiles', async () =>
   const lb = await anon.request('GET', '/leaderboard');
   assert.match(lb.text, /href="\/users\/Tess"/);
 });
+
+test('the friend button walks through Add friend → Request sent → Accept → Friends', async () => {
+  const vera = await registerClient('Vera');
+  const wade = await registerClient('Wade');
+  assert.match((await vera.request('GET', '/users/Wade')).text, /Add friend/);
+  assert.match((await anon.request('GET', '/users/Wade')).text, /Log in to add friend/);
+  assert.equal((await vera.request('POST', '/users/Wade/friend')).status, 302);
+  assert.match((await vera.request('GET', '/users/Wade')).text, /Request sent/);
+  assert.match((await wade.request('GET', '/users/Vera')).text, /Accept/);
+  await wade.request('POST', '/users/Vera/accept');
+  assert.match((await vera.request('GET', '/users/Wade')).text, /10003; Friends/);
+  assert.match((await wade.request('GET', '/users/Vera')).text, /Unfriend/);
+  await wade.request('POST', '/users/Vera/unfriend');
+  assert.match((await vera.request('GET', '/users/Wade')).text, /Add friend/);
+});
+
+test('incoming requests show on the dashboard with a nav count and can be declined from there', async () => {
+  const uma = await registerClient('Uma');
+  await tess.request('POST', '/users/Uma/friend');
+  const dash = await uma.request('GET', '/dashboard');
+  assert.match(dash.text, /Friend requests/);
+  assert.match(dash.text, /Tess/);
+  assert.match(dash.text, /Uma \(1\)/);
+  const res = await uma.request('POST', '/users/Tess/decline', { back: '/dashboard' });
+  assert.equal(res.status, 302);
+  assert.equal(res.location, '/dashboard');
+  const after = await uma.request('GET', '/dashboard');
+  assert.doesNotMatch(after.text, /Uma \(1\)/);
+  assert.doesNotMatch(after.text, /Friend requests/);
+});
+
+test('friend action routes require login and 404-safe usernames', async () => {
+  const res = await anon.request('POST', '/users/Tess/friend');
+  assert.equal(res.status, 302);
+  assert.equal(res.location, '/login');
+  const missing = await tess.request('POST', '/users/nobody-here/friend');
+  assert.equal(missing.status, 302);
+  assert.equal(missing.location, '/dashboard');
+});
