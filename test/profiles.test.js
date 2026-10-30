@@ -250,3 +250,11 @@ test('a legacy deck with no visibility field stays public', async () => {
   assert.match((await nico.request('GET', '/decks')).text, /LegacyDeckZ/);
   assert.equal((await nico.request('GET', `/decks/${insertedId}`)).status, 200);
 });
+
+test("the owner's deck page offers the visibility options with the current one selected", async () => {
+  const fd = await Deck.findOne({ name: 'FriendDeckZ' });
+  const res = await tess.request('GET', `/decks/${fd._id}`);
+  assert.match(res.text, /<option value="friends" selected>/);
+  assert.match(res.text, /<option value="public">/);
+  assert.match(res.text, /<option value="private">/);
+});
