@@ -180,6 +180,13 @@ test('new decks default to public and the form offers all three settings', async
   assert.equal((await Deck.findOne({ name: 'PrivNewZ' })).visibility, 'private');
 });
 
+test('the chosen visibility survives a form error', async () => {
+  const res = await tess.request('POST', '/decks', { name: '   ', format: 'Modern', visibility: 'private' });
+  assert.equal(res.status, 400);
+  assert.match(res.text, /<option value="private" selected>/);
+  assert.doesNotMatch(res.text, /<option value="public" selected>/);
+});
+
 test("the owner can change a deck's visibility; others cannot", async () => {
   const stranger = await registerClient('Ines');
   const deck = await Deck.create({ name: 'ChangeVisZ', format: 'Modern', owner: tessUser._id });
