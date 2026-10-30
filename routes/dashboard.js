@@ -2,6 +2,7 @@ import express from 'express';
 import { Deck, User, MAX_OPPONENTS } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getUserSummary } from '../lib/stats.js';
+import { canSeeDeck } from '../lib/visibility.js';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.get('/dashboard', requireAuth, async (req, res, next) => {
       title: 'Dashboard',
       user: req.currentUser,
       decks,
-      trackedDecks: userWithTracked?.trackedDecks ?? [],
+      trackedDecks: (userWithTracked?.trackedDecks ?? []).filter((d) => canSeeDeck(d, req.currentUser)),
       summary,
       requesters,
       maxOpponents: MAX_OPPONENTS,

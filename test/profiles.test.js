@@ -160,3 +160,93 @@ test('friend action routes require login and 404-safe usernames', async () => {
   assert.equal(missing.status, 302);
   assert.equal(missing.location, '/dashboard');
 });
+
+// --- Task 4: visibility enforcement ---
+
+const befriend = async (a, aName, b, bName) => {
+  await a.request('POST', `/users/${bName}/friend`);
+  await b.request('POST', `/users/${aName}/accept`);
+};
+
+test('new decks default to public and the form offers all three settings', async () => {
+  const form = await tess.request('GET', '/decks/new');
+  assert.match(form.text, /name="visibility"/);
+  for (const v of ['public', 'friends', 'private']) assert.match(form.text, new RegExp(`<option value="${v}"`));
+  await tess.request('POST', '/decks', { name: 'DefaultVisZ', format: 'Modern' });
+  await tess.request('POST', '/decks', { name: 'BogusVisZ', format: 'Modern', visibility: 'bogus' });
+  await tess.request('POST', '/decks', { name: 'PrivNewZ', format: 'Modern', visibility: 'private' });
+  assert.equal((await Deck.findOne({ name: 'DefaultVisZ' })).visibility, 'public');
+  assert.equal((await Deck.findOne({ name: 'BogusVisZ' })).visibility, 'public');
+  assert.equal((await Deck.findOne({ name: 'PrivNewZ' })).visibility, 'private');
+});
+
+test("the owner can change a deck's visibility; others cannot", async () => {
+  const stranger = await registerClient('Ines');
+  const deck = await Deck.create({ name: 'ChangeVisZ', format: 'Modern', owner: tessUser._id });
+  const res = await tess.request('POST', `/decks/${deck._id}/visibility`, { visibility: 'friends' });
+  assert.equal(res.status, 302);
+  assert.equal(res.location, `/decks/${deck._id}`);
+  assert.equal((await Deck.findById(deck._id)).visibility, 'friends');
+  const bad = await stranger.request('POST', `/decks/${deck._id}/visibility`, { visibility: 'private' });
+  assert.equal(bad.status, 404);
+  assert.equal((await Deck.findById(deck._id)).visibility, 'friends');
+});
+
+test('friends-only and private decks are hidden from Browse, deck pages and tracking for non-friends', async () => {
+  const joss = await registerClient('Joss');
+  const kira = await registerClient('Kira');
+  await befriend(tess, 'Tess', kira, 'Kira');
+  const jossBrowse = await joss.request('GET', '/decks');
+  assert.match(jossBrowse.text, /PubDeckZ/);
+  assert.doesNotMatch(jossBrowse.text, /FriendDeckZ/);
+  assert.doesNotMatch(jossBrowse.text, /PrivDeckZ/);
+  const fd = await Deck.findOne({ name: 'FriendDeckZ' });
+  const pd = await Deck.findOne({ name: 'PrivDeckZ' });
+  assert.equal((await joss.request('GET', `/decks/${fd._id}`)).status, 404);
+  await joss.request('POST', `/decks/${fd._id}/track`);
+  assert.equal((await User.findOne({ username: 'Joss' })).trackedDecks.length, 0);
+  const kBrowse = await kira.request('GET', '/decks');
+  assert.match(kBrowse.text, /FriendDeckZ/);
+  assert.doesNotMatch(kBrowse.text, /PrivDeckZ/);
+  assert.equal((await kira.request('GET', `/decks/${fd._id}`)).status, 200);
+  assert.equal((await kira.request('GET', `/decks/${pd._id}`)).status, 404);
+});
+
+test('a tracked deck drops off the dashboard when access is lost and returns when regained', async () => {
+  const lena = await registerClient('Lena');
+  await befriend(tess, 'Tess', lena, 'Lena');
+  const fd = await Deck.findOne({ name: 'FriendDeckZ' });
+  await lena.request('POST', `/decks/${fd._id}/track`);
+  assert.match((await lena.request('GET', '/dashboard')).text, /FriendDeckZ/);
+  await tess.request('POST', '/users/Lena/unfriend');
+  assert.doesNotMatch((await lena.request('GET', '/dashboard')).text, /FriendDeckZ/);
+  assert.equal((await User.findOne({ username: 'Lena' })).trackedDecks.length, 1);
+  await befriend(tess, 'Tess', lena, 'Lena');
+  assert.match((await lena.request('GET', '/dashboard')).text, /FriendDeckZ/);
+});
+
+test("a hidden deck's name never appears in the profile or deck leaderboard HTML", async () => {
+  const milo = await registerClient('Milo');
+  const wl = (t) => t.match(/<dt>W<\/dt><dd>(\d+)<\/dd>[\s\S]*?<dt>L<\/dt><dd>(\d+)<\/dd>/)?.slice(1, 3).join('/');
+  const ownerLb = await tess.request('GET', '/deckLeaderboard');
+  assert.match(ownerLb.text, /PrivDeckZ/);
+  for (const viewer of [anon, milo]) {
+    for (const path of ['/deckLeaderboard', '/users/Tess']) {
+      const res = await viewer.request('GET', path);
+      assert.doesNotMatch(res.text, /PrivDeckZ/);
+      assert.match(res.text, /Hidden deck/);
+    }
+    const lb = await viewer.request('GET', '/deckLeaderboard');
+    assert.match(lb.text, /href="\/users\/Tess"/);
+    assert.equal(wl(lb.text), wl(ownerLb.text));
+  }
+});
+
+test('a legacy deck with no visibility field stays public', async () => {
+  const nico = await registerClient('Nico');
+  const { insertedId } = await Deck.collection.insertOne({
+    name: 'LegacyDeckZ', format: 'Modern', owner: tessUser._id, cards: [], colors: [], createdAt: new Date(),
+  });
+  assert.match((await nico.request('GET', '/decks')).text, /LegacyDeckZ/);
+  assert.equal((await nico.request('GET', `/decks/${insertedId}`)).status, 200);
+});

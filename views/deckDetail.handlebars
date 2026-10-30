@@ -13,6 +13,14 @@
       <div class="deck-hero__actions">
         {{#if isOwner}}
           <a href="/decks/{{deck._id}}/cards" class="button">Manage Cards</a>
+          <form action="/decks/{{deck._id}}/visibility" method="POST" style="display:inline">
+            <select name="visibility" aria-label="Deck visibility">
+              {{#each ../visibilities}}
+                <option value="{{this}}"{{#if (eq this ../deck.visibility)}} selected{{/if}}>{{this}}</option>
+              {{/each}}
+            </select>
+            <button type="submit" class="button">Set visibility</button>
+          </form>
         {{else}}
           {{#if isTracked}}
             <form action="/decks/{{deck._id}}/untrack" method="POST" style="display:inline">

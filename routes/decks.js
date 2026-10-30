@@ -1,12 +1,13 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { Deck, DECK_FORMATS, MTG_COLORS, User } from '../models/index.js';
+import { Deck, DECK_FORMATS, DECK_VISIBILITY, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
 import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
 import { parseDecklist } from '../lib/decklist.js';
 import { safeBack } from '../lib/safeBack.js';
+import { canSeeDeck, visibleDeckFilter } from '../lib/visibility.js';
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ router.get('/decks/new', requireAuth, (req, res) => {
     title: 'New Deck',
     formats: DECK_FORMATS,
     colorOptions: MTG_COLORS,
+    visibilities: DECK_VISIBILITY,
   });
 });
 
@@ -29,7 +31,7 @@ router.get('/decks', requireAuth, async (req, res, next) => {
     const filter = {};
     if (DECK_FORMATS.includes(req.query.format)) filter.format = req.query.format;
 
-    const decks = await Deck.find(filter)
+    const decks = await Deck.find({ $and: [filter, visibleDeckFilter(req.currentUser)] })
       .sort({ createdAt: -1 })
       .populate('owner', 'username')
       .lean();
@@ -66,6 +68,7 @@ router.post('/decks', requireAuth, async (req, res, next) => {
   if (!Array.isArray(colors)) colors = [colors];
   colors = colors.filter((c) => MTG_COLORS.includes(c));
 
+  const visibility = DECK_VISIBILITY.includes(req.body.visibility) ? req.body.visibility : 'public';
   const commanderName = (commander || '').trim();
 
   try {
@@ -77,6 +80,7 @@ router.post('/decks', requireAuth, async (req, res, next) => {
       name: (name || '').trim(),
       format,
       owner: req.currentUser._id,
+      visibility,
       colors,
       commander: commanderName || undefined,
       commanderImageUrl: commanderCard?.imageUrl || '',
@@ -90,6 +94,7 @@ router.post('/decks', requireAuth, async (req, res, next) => {
         title: 'New Deck',
         formats: DECK_FORMATS,
         colorOptions: MTG_COLORS,
+        visibilities: DECK_VISIBILITY,
         hasError: true,
         deckError: 'Please provide a name and a valid format.',
         values: req.body,
@@ -105,7 +110,7 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
       return res.status(404).render('404', { title: 'Not Found' });
     }
     const deck = await Deck.findById(req.params.id).lean();
-    if (!deck) {
+    if (!deck || !canSeeDeck(deck, req.currentUser)) {
       return res.status(404).render('404', { title: 'Not Found' });
     }
     const stats = await getDeckStats(deck._id);
@@ -124,7 +129,7 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
       mode: groupMode,
       commander: hasCommander ? { ...commanderAsCard, name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
     });
-    res.render('deckDetail', { title: deck.name, deck, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode });
+    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode });
   } catch (err) {
     next(err);
   }
@@ -144,6 +149,20 @@ const renderManager = (res, deck, extra = {}) => {
     ...extra,
   });
 };
+
+router.post('/decks/:id/visibility', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+    if (DECK_VISIBILITY.includes(req.body.visibility)) {
+      deck.visibility = req.body.visibility;
+      await deck.save();
+    }
+    res.redirect(`/decks/${deck._id}`);
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/decks/:id/cards', requireAuth, async (req, res, next) => {
   try {
@@ -331,9 +350,9 @@ router.post('/decks/:id/track', requireAuth, async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) return res.redirect('/decks');
     const back = safeBack(req.body.back, `/decks/${req.params.id}`);
 
-    const deck = await Deck.findById(req.params.id).select('owner').lean();
-    // Can't track a missing deck or your own deck.
-    if (deck && deck.owner.toString() !== req.currentUser._id.toString()) {
+    const deck = await Deck.findById(req.params.id).select('owner visibility').lean();
+    // Can't track a missing, hidden or own deck.
+    if (deck && canSeeDeck(deck, req.currentUser) && deck.owner.toString() !== req.currentUser._id.toString()) {
       await User.updateOne(
         { _id: req.currentUser._id },
         { $addToSet: { trackedDecks: deck._id } }
