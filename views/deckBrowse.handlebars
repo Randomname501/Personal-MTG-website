@@ -20,7 +20,7 @@
       {{#each decks}}
         <div class="deck-card">
           <h3><a href="/decks/{{this._id}}">{{this.name}}</a></h3>
-          <p>By {{this.owner}} &middot; {{this.format}}{{#if this.colors.length}} &middot; {{#each this.colors}}{{this}} {{/each}}{{/if}}</p>
+          <p>By {{#if this.ownerName}}<a href="{{profilePath this.ownerName}}">{{this.ownerName}}</a>{{else}}{{this.owner}}{{/if}} &middot; {{this.format}}{{#if this.colors.length}} &middot; {{#each this.colors}}{{this}} {{/each}}{{/if}}</p>
           {{#if this.isOwner}}
             <span class="track-label">Yours</span>
           {{else}}

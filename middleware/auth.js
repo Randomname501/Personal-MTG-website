@@ -1,4 +1,5 @@
 import { User } from '../models/index.js';
+import { profilePath } from '../lib/viewHelpers.js';
 
 const HEADER_TITLE = 'MTG Tracker';
 
@@ -36,7 +37,14 @@ export const attachUser = async (req, res, next) => {
       if (user) {
         req.currentUser = user;
         res.locals.currentUser = user;
-        res.locals.navLink = loggedInNav;
+        const pending = user.friendRequests?.length ?? 0;
+        res.locals.pendingRequests = pending;
+        const nav = [...loggedInNav];
+        nav.splice(-1, 0, {
+          link: profilePath(user.username),
+          text: pending > 0 ? `${user.username} (${pending})` : user.username,
+        });
+        res.locals.navLink = nav;
         return next();
       }
       // Stale session pointing at a deleted user — clear it.

@@ -1,0 +1,91 @@
+<main class="profile-page">
+  <header class="profile-head">
+    <h1>{{profile.username}}</h1>
+    <p class="profile-meta">
+      Joined {{formatDate profile.createdAt}} &middot; {{friends.length}} {{#if (eq friends.length 1)}}friend{{else}}friends{{/if}}{{#if summary.totalGames}} &middot; {{summary.winRate}}% win rate{{/if}}
+    </p>
+    {{#if (eq relation "anon")}}
+      <a class="button" href="/login">Log in to add friend</a>
+    {{else if (eq relation "none")}}
+      <form action="{{profilePath profile.username}}/friend" method="POST"><button type="submit" class="button">Add friend</button></form>
+    {{else if (eq relation "sent")}}
+      <form action="{{profilePath profile.username}}/cancel" method="POST"><span>Request sent</span> <button type="submit" class="button cancel-button">Cancel</button></form>
+    {{else if (eq relation "received")}}
+      <form action="{{profilePath profile.username}}/accept" method="POST" style="display:inline"><button type="submit" class="button">Accept</button></form>
+      <form action="{{profilePath profile.username}}/decline" method="POST" style="display:inline"><button type="submit" class="button cancel-button">Decline</button></form>
+    {{else if (eq relation "friends")}}
+      <details><summary>&#10003; Friends &#9662;</summary>
+        <form action="{{profilePath profile.username}}/unfriend" method="POST"><button type="submit" class="button cancel-button">Unfriend</button></form>
+      </details>
+    {{/if}}
+  </header>
+
+  <div class="profile-layout">
+    <div class="profile-main">
+      <section>
+        <h2>Decks</h2>
+        {{#if decks.length}}
+          <ul class="profile-list">
+            {{#each decks}}
+              <li><a href="/decks/{{this._id}}">{{this.name}}</a>{{#if ../isSelf}} <span class="visibility-badge">{{#if (eq this.visibility "private")}}Private{{else if (eq this.visibility "friends")}}Friends{{else}}Public{{/if}}</span>{{/if}}</li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p>No decks to show.</p>
+        {{/if}}
+      </section>
+
+      <section>
+        <h2>Recent games</h2>
+        {{#if games.length}}
+          <ul class="profile-list">
+            {{#each games}}
+              <li>{{formatDate this.createdAt}} &middot; {{this.result}} with
+                {{#if this.deck}}<a href="/decks/{{this.deck._id}}">{{this.deck.name}}</a>{{else}}<span class="hidden-deck">Hidden deck</span>{{/if}}
+                vs {{formatOpponents this.opponents}}</li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p>No games yet.</p>
+        {{/if}}
+      </section>
+    </div>
+
+    <aside class="profile-side">
+      <section>
+        <h2>Friends</h2>
+        {{#if friends.length}}
+          <ul class="profile-list">
+            {{#each friends}}<li><a href="{{profilePath this.username}}">{{this.username}}</a></li>{{/each}}
+          </ul>
+        {{else}}
+          <p>No friends yet.</p>
+        {{/if}}
+      </section>
+
+      <section class="profile-comments">
+        <h2>Comments</h2>
+        {{#if error}}<p class="error-message" role="alert">{{error}}</p>{{/if}}
+        {{#if (eq relation "friends")}}
+          <form action="{{profilePath profile.username}}/comments" method="POST" class="comment-form">
+            <textarea name="body" rows="3" maxlength="1000" required>{{commentDraft}}</textarea>
+            <button type="submit" class="button">Post comment</button>
+          </form>
+        {{/if}}
+        {{#unless comments.length}}<p>No comments yet.</p>{{/unless}}
+        {{#each comments}}
+          <article class="comment">
+            <p class="comment-meta"><a href="{{profilePath this.author.username}}">{{this.author.username}}</a> &middot; {{formatDate this.createdAt}}</p>
+            <p class="comment-body">{{this.body}}</p>
+            {{#if this.canDelete}}
+              <form action="/comments/{{this._id}}/delete" method="POST">
+                <input type="hidden" name="back" value="{{profilePath ../profile.username}}">
+                <button type="submit" class="button cancel-button">Delete</button>
+              </form>
+            {{/if}}
+          </article>
+        {{/each}}
+      </section>
+    </aside>
+  </div>
+</main>
