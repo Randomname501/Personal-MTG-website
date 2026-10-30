@@ -1,0 +1,59 @@
+<main class="profile-page">
+  <header class="profile-head">
+    <h1>{{profile.username}}</h1>
+    <p class="profile-meta">
+      Joined {{formatDate profile.createdAt}} &middot; {{friends.length}} friends{{#if summary.totalGames}} &middot; {{summary.winRate}}% win rate{{/if}}
+    </p>
+    {{!-- Task 3: friend button goes here (driven by `relation`) --}}
+  </header>
+
+  <div class="profile-layout">
+    <div class="profile-main">
+      <section>
+        <h2>Decks</h2>
+        {{#if decks.length}}
+          <ul class="profile-list">
+            {{#each decks}}
+              <li><a href="/decks/{{this._id}}">{{this.name}}</a>{{#if ../isSelf}} <span class="visibility-badge">{{#if (eq this.visibility "private")}}Private{{else if (eq this.visibility "friends")}}Friends{{else}}Public{{/if}}</span>{{/if}}</li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p>No decks to show.</p>
+        {{/if}}
+      </section>
+
+      <section>
+        <h2>Recent games</h2>
+        {{#if games.length}}
+          <ul class="profile-list">
+            {{#each games}}
+              <li>{{formatDate this.createdAt}} &middot; {{this.result}} with
+                {{#if this.deck}}<a href="/decks/{{this.deck._id}}">{{this.deck.name}}</a>{{else}}<span class="hidden-deck">Hidden deck</span>{{/if}}
+                vs {{formatOpponents this.opponents}}</li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p>No games yet.</p>
+        {{/if}}
+      </section>
+    </div>
+
+    <aside class="profile-side">
+      <section>
+        <h2>Friends</h2>
+        {{#if friends.length}}
+          <ul class="profile-list">
+            {{#each friends}}<li><a href="{{profilePath this.username}}">{{this.username}}</a></li>{{/each}}
+          </ul>
+        {{else}}
+          <p>No friends yet.</p>
+        {{/if}}
+      </section>
+
+      <section class="profile-comments">
+        <h2>Comments</h2>
+        {{#unless comments.length}}<p>No comments yet.</p>{{/unless}}
+      </section>
+    </aside>
+  </div>
+</main>

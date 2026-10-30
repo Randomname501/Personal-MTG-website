@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { percent, eq, formatDate, formatOpponents } = await import('../lib/viewHelpers.js');
+const { percent, eq, formatDate, formatOpponents, profilePath } = await import('../lib/viewHelpers.js');
 
 test('percent is integer part-of-whole, 0 when whole is 0', () => {
   assert.equal(percent(1, 4), 25);
@@ -38,4 +38,9 @@ test('formatOpponents renders a nameless opponent as the deck alone', () => {
 test('formatOpponents renders an em dash for an empty or missing list', () => {
   assert.equal(formatOpponents([]), '—');
   assert.equal(formatOpponents(undefined), '—');
+});
+
+test('profilePath builds an encoded profile URL', () => {
+  assert.equal(profilePath('Tess'), '/users/Tess');
+  assert.equal(profilePath('a b&c'), '/users/a%20b%26c');
 });

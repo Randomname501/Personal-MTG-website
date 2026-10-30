@@ -6,6 +6,7 @@ import { getDeckStats } from '../lib/stats.js';
 import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
 import { parseDecklist } from '../lib/decklist.js';
+import { safeBack } from '../lib/safeBack.js';
 
 const router = express.Router();
 
@@ -14,11 +15,6 @@ const findOwnedDeck = async (id, userId) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
   return Deck.findOne({ _id: id, owner: userId });
 };
-
-// Only allow local relative redirects (a path starting with a single '/'),
-// never an absolute/scheme URL — prevents open redirects.
-const safeBack = (value, fallback) =>
-  (typeof value === 'string' && /^\/(?!\/)/.test(value) ? value : fallback);
 
 router.get('/decks/new', requireAuth, (req, res) => {
   res.render('deckForm', {
@@ -46,6 +42,7 @@ router.get('/decks', requireAuth, async (req, res, next) => {
       format: d.format,
       colors: d.colors,
       owner: d.owner?.username ?? '—',
+      ownerName: d.owner?.username ?? null,
       isOwner: d.owner?._id?.toString() === userId,
       isTracked: trackedIds.has(d._id.toString()),
     }));

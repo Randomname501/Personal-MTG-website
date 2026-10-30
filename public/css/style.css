@@ -1329,3 +1329,14 @@ main:not(.landing) h2 {
   .card-note { flex-direction: column; }
   .card-note__image { max-width: 70%; }
 }
+
+/* Profile page */
+.profile-head { margin-bottom: 1.5rem; }
+.profile-meta { color: var(--ink-soft); }
+.profile-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
+.profile-layout h2 { font-family: 'Cinzel', serif; font-size: 1.1rem; border-bottom: 1px solid var(--rule); padding-bottom: 0.3rem; }
+.profile-list { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+.profile-list li { padding: 0.35rem 0; border-bottom: 1px solid var(--rule); }
+.hidden-deck { filter: blur(3px); user-select: none; }
+.visibility-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 4px; padding: 0.05rem 0.4rem; margin-left: 0.4rem; }
+@media (max-width: 860px) { .profile-layout { grid-template-columns: 1fr; } }
