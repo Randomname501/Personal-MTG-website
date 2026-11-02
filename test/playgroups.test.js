@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { app } from '../app.js';
 import { connectMongo } from '../config/db.js';
 import { Deck, GameRecord, Playgroup, User } from '../models/index.js';
+import * as pg from '../lib/playgroups.js';
 import { getPlayerLeaderboard, getDeckLeaderboard, maskHiddenDecks } from '../lib/leaderboards.js';
 
 // One isolated cookie jar + request helper per client, as in profiles.test.js.
@@ -113,4 +114,109 @@ test('maskHiddenDecks hides a private deck from a non-owner', () => {
   assert.equal(row.hidden, true);
   assert.equal('deckName' in row, false);
   assert.equal(row.wins, 1);
+});
+
+// --- Task 2: membership operations ---
+
+const reload = (g) => Playgroup.findById(g._id).lean();
+const ids = (list) => list.map(String);
+// The full viewer shape invite() expects (friends loaded).
+const asViewer = (u) => User.findById(u._id).lean();
+
+test('cleanName trims and enforces 1–60 chars', () => {
+  assert.equal(pg.cleanName('  '), null);
+  assert.equal(pg.cleanName('x'.repeat(61)), null);
+  assert.equal(pg.cleanName('  Pod  '), 'Pod');
+  assert.equal(pg.cleanName(undefined), null);
+});
+
+test('invite: friends get invited (any case), everyone else gets a reason', async () => {
+  const owner = await mkUser('InvOwner');
+  const bob = await mkUser('InvBob');
+  const stranger = await mkUser('InvStranger');
+  const oneSided = await mkUser('InvOneSided');
+  await befriend(owner, bob);
+  await User.updateOne({ _id: owner._id }, { $addToSet: { friends: oneSided._id } });
+  const g = await pg.createPlaygroup(owner._id, 'InvPod');
+  const viewer = await asViewer(owner);
+
+  assert.equal(await pg.invite(g, viewer, 'invbob'), null);
+  assert.deepEqual(ids((await reload(g)).invites), [String(bob._id)]);
+  assert.equal(await pg.invite(g, viewer, 'InvBob'), 'InvBob has already been invited.');
+  assert.equal(await pg.invite(g, viewer, 'Nobody'), 'No player named "Nobody".');
+  assert.equal(await pg.invite(g, viewer, 'InvStranger'), 'You can only invite your friends.');
+  assert.equal(await pg.invite(g, viewer, 'InvOneSided'), 'You can only invite your friends.');
+  await befriend(owner, stranger);
+  await Playgroup.updateOne({ _id: g._id }, { $addToSet: { members: stranger._id } });
+  assert.equal(await pg.invite(g, await asViewer(owner), 'invstranger'), 'InvStranger is already in this playgroup.');
+});
+
+test('acceptInvite moves an invitee into members; a non-invitee changes nothing', async () => {
+  const owner = await mkUser('AccOwner');
+  const inv = await mkUser('AccInvitee');
+  const other = await mkUser('AccOther');
+  const g = await pg.createPlaygroup(owner._id, 'AccPod');
+  await Playgroup.updateOne({ _id: g._id }, { $addToSet: { invites: inv._id } });
+
+  await pg.acceptInvite(g._id, other._id);
+  assert.deepEqual(ids((await reload(g)).members), [String(owner._id)]);
+  await pg.acceptInvite(g._id, inv._id);
+  const after1 = await reload(g);
+  assert.deepEqual(ids(after1.members), [String(owner._id), String(inv._id)]);
+  assert.deepEqual(after1.invites, []);
+
+  await Playgroup.updateOne({ _id: g._id }, { $addToSet: { invites: other._id } });
+  await pg.declineInvite(g._id, other._id);
+  assert.deepEqual((await reload(g)).invites, []);
+});
+
+test('leave and removeMember never take out the owner', async () => {
+  const owner = await mkUser('LvOwner');
+  const m1 = await mkUser('LvM1');
+  const m2 = await mkUser('LvM2');
+  const g = await pg.createPlaygroup(owner._id, 'LvPod');
+  await Playgroup.updateOne({ _id: g._id }, { $addToSet: { members: { $each: [m1._id, m2._id] } } });
+
+  await pg.leave(g._id, owner._id);
+  assert.equal((await reload(g)).members.length, 3);
+  await pg.leave(g._id, m1._id);
+  assert.deepEqual(ids((await reload(g)).members), [String(owner._id), String(m2._id)]);
+
+  await pg.removeMember(g._id, owner._id, owner._id);
+  await pg.removeMember(g._id, m2._id, owner._id);
+  assert.equal((await reload(g)).members.length, 2);
+  await pg.removeMember(g._id, owner._id, m2._id);
+  assert.deepEqual(ids((await reload(g)).members), [String(owner._id)]);
+});
+
+test('rename and deletePlaygroup are owner-only; delete untags games', async () => {
+  const owner = await mkUser('DelOwner');
+  const m = await mkUser('DelMember');
+  const deck = await Deck.create({ name: 'DelDeck', format: 'Modern', owner: m._id });
+  const g = await pg.createPlaygroup(owner._id, 'DelPod');
+  await Playgroup.updateOne({ _id: g._id }, { $addToSet: { members: m._id } });
+  const game = await mkGame(m, deck, { playgroup: g._id });
+
+  await pg.rename(g._id, m._id, 'Hijacked');
+  assert.equal((await reload(g)).name, 'DelPod');
+  await pg.rename(g._id, owner._id, 'Renamed');
+  assert.equal((await reload(g)).name, 'Renamed');
+
+  await pg.deletePlaygroup(g._id, m._id);
+  assert.ok(await reload(g));
+  await pg.deletePlaygroup(g._id, owner._id);
+  assert.equal(await reload(g), null);
+  const left = await GameRecord.findById(game._id).lean();
+  assert.ok(left);
+  assert.equal(left.playgroup, undefined);
+});
+
+test('findMemberGroup is null for a malformed id, a missing group, or a non-member', async () => {
+  const owner = await mkUser('FmOwner');
+  const out = await mkUser('FmOut');
+  const g = await pg.createPlaygroup(owner._id, 'FmPod');
+  assert.equal((await pg.findMemberGroup(g._id, owner._id)).name, 'FmPod');
+  assert.equal(await pg.findMemberGroup(g._id, out._id), null);
+  assert.equal(await pg.findMemberGroup('not-an-id', owner._id), null);
+  assert.equal(await pg.findMemberGroup(new mongoose.Types.ObjectId(), owner._id), null);
 });
