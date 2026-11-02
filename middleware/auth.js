@@ -21,6 +21,7 @@ const loggedInNav = [
   { link: '/dashboard', text: 'Dashboard' },
   { link: '/game-records', text: 'Match History' },
   { link: '/decks', text: 'Browse Decks' },
+  { link: '/playgroups', text: 'Playgroups' },
   { link: '/logout', text: 'Logout' },
 ];
 

@@ -1,0 +1,59 @@
+<main class="profile-page">
+  <header class="profile-head">
+    <h1>{{group.name}}</h1>
+    <p class="profile-meta">{{members.length}} {{#if (eq members.length 1)}}member{{else}}members{{/if}}</p>
+    {{#unless isOwner}}
+      <form action="/playgroups/{{group._id}}/leave" method="POST"><button type="submit" class="button cancel-button">Leave playgroup</button></form>
+    {{/unless}}
+  </header>
+  {{#if error}}<div class="error-message">{{error}}</div>{{/if}}
+
+  <div class="profile-layout">
+    <div class="profile-main">
+    </div>
+
+    <aside class="profile-side">
+      <section>
+        <h2>Members</h2>
+        <ul class="profile-list">
+          {{#each members}}
+            <li>
+              <a href="{{profilePath this.username}}">{{this.username}}</a>{{#if this.isOwner}} <span class="visibility-badge">Owner</span>{{/if}}
+              {{#if ../isOwner}}{{#unless this.isOwner}}
+                <form action="/playgroups/{{../group._id}}/remove" method="POST" style="display:inline"><input type="hidden" name="username" value="{{this.username}}"><button type="submit" class="button cancel-button">Remove</button></form>
+              {{/unless}}{{/if}}
+            </li>
+          {{/each}}
+        </ul>
+        {{#if invites.length}}
+          <p class="profile-meta">Invited: {{#each invites}}{{this.username}}{{#unless @last}}, {{/unless}}{{/each}}</p>
+        {{/if}}
+      </section>
+
+      <section>
+        <h2>Invite a friend</h2>
+        <form action="/playgroups/{{group._id}}/invite" method="POST" class="deck-form">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required value="{{inviteDraft}}">
+          </div>
+          <button type="submit" class="submit-button">Invite</button>
+        </form>
+      </section>
+
+      {{#if isOwner}}
+        <section>
+          <h2>Manage</h2>
+          <form action="/playgroups/{{group._id}}/rename" method="POST" class="deck-form">
+            <div class="form-group">
+              <label for="name">Name</label>
+              <input type="text" id="name" name="name" maxlength="60" required value="{{group.name}}">
+            </div>
+            <button type="submit" class="submit-button">Rename</button>
+          </form>
+          <form action="/playgroups/{{group._id}}/delete" method="POST"><button type="submit" class="button cancel-button">Delete playgroup</button></form>
+        </section>
+      {{/if}}
+    </aside>
+  </div>
+</main>

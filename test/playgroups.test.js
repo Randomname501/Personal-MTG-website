@@ -220,3 +220,88 @@ test('findMemberGroup is null for a malformed id, a missing group, or a non-memb
   assert.equal(await pg.findMemberGroup('not-an-id', owner._id), null);
   assert.equal(await pg.findMemberGroup(new mongoose.Types.ObjectId(), owner._id), null);
 });
+
+// --- Task 3: routes and pages ---
+
+const idFrom = (location) => location.split('/').pop();
+
+test('create a playgroup, see it; empty names are refused', async () => {
+  const c = await registerClient('RtCreator');
+  const res = await c.request('POST', '/playgroups', { name: 'Friday Pod' });
+  assert.equal(res.status, 302);
+  assert.match(res.location, /^\/playgroups\/[0-9a-f]{24}$/);
+  const page = await c.request('GET', res.location);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /Friday Pod/);
+  assert.match((await c.request('GET', '/playgroups')).text, /Friday Pod/);
+
+  const bad = await c.request('POST', '/playgroups', { name: '  ' });
+  assert.equal(bad.status, 400);
+  assert.match(bad.text, /Playgroup names must be 1–60 characters\./);
+});
+
+test('non-members and bad ids get 404 without the name; anonymous goes to login', async () => {
+  const owner = await registerClient('RtOwner404');
+  const out = await registerClient('RtOutsider');
+  const { location } = await owner.request('POST', '/playgroups', { name: 'Secret Pod' });
+  const res = await out.request('GET', location);
+  assert.equal(res.status, 404);
+  assert.doesNotMatch(res.text, /Secret Pod/);
+  assert.equal((await makeClient().request('GET', location)).location, '/login');
+  assert.equal((await owner.request('GET', '/playgroups/not-an-id')).status, 404);
+  for (const action of ['invite', 'accept', 'decline', 'leave', 'remove', 'rename', 'delete']) {
+    const r = await owner.request('POST', `/playgroups/not-an-id/${action}`, { username: 'x', name: 'x' });
+    assert.notEqual(r.status, 500, action);
+  }
+  const outsiderInvite = await out.request('POST', `${location}/invite`, { username: 'RtOwner404' });
+  assert.equal(outsiderInvite.status, 404);
+});
+
+test('invite, accept, and the invite errors over HTTP', async () => {
+  const owner = await registerClient('RtHost');
+  const friend = await registerClient('RtGuest');
+  await registerClient('RtNobodyFriend');
+  await owner.request('POST', '/users/RtGuest/friend');
+  await friend.request('POST', '/users/RtHost/accept');
+  const { location } = await owner.request('POST', '/playgroups', { name: 'Guest Pod' });
+
+  const inv = await owner.request('POST', `${location}/invite`, { username: 'rtguest' });
+  assert.equal(inv.status, 302);
+  assert.match((await friend.request('GET', '/playgroups')).text, /Guest Pod/);
+  assert.equal((await friend.request('GET', location)).status, 404);
+  await friend.request('POST', `${location}/accept`);
+  const page = await friend.request('GET', location);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /RtHost/);
+
+  const refused = await owner.request('POST', `${location}/invite`, { username: 'RtNobodyFriend' });
+  assert.equal(refused.status, 400);
+  assert.match(refused.text, /You can only invite your friends\./);
+});
+
+test('leave, remove, rename, delete over HTTP', async () => {
+  const owner = await registerClient('RtBoss');
+  const m = await registerClient('RtCrew');
+  const mUser = await User.findOne({ username: 'RtCrew' });
+  const { location } = await owner.request('POST', '/playgroups', { name: 'Crew Pod' });
+  const id = idFrom(location);
+  await Playgroup.updateOne({ _id: id }, { $addToSet: { members: mUser._id } });
+
+  assert.equal((await m.request('POST', `${location}/leave`)).location, '/playgroups');
+  assert.equal((await m.request('GET', location)).status, 404);
+  await Playgroup.updateOne({ _id: id }, { $addToSet: { members: mUser._id } });
+  await owner.request('POST', `${location}/remove`, { username: 'RtCrew' });
+  assert.equal((await Playgroup.findById(id)).members.length, 1);
+
+  assert.equal((await owner.request('POST', `${location}/rename`, { name: '' })).status, 400);
+  await owner.request('POST', `${location}/rename`, { name: 'Boss Pod' });
+  assert.match((await owner.request('GET', location)).text, /Boss Pod/);
+
+  assert.equal((await owner.request('POST', `${location}/delete`)).location, '/playgroups');
+  assert.equal(await Playgroup.findById(id), null);
+});
+
+test('nav links to playgroups when logged in', async () => {
+  const c = await registerClient('RtNav');
+  assert.match((await c.request('GET', '/dashboard')).text, /href="\/playgroups"/);
+});
