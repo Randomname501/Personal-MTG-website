@@ -358,8 +358,10 @@ test('games can be tagged with my playgroup, never with someone else’s', async
   const tagged = await GameRecord.findOne({ user: me._id });
   assert.equal(String(tagged.playgroup), mine);
 
+  // A stale or foreign group (e.g. just removed) must not lose the game: it saves untagged.
   await c.request('POST', '/game-records', game({ playgroup_id: theirs }));
-  assert.equal(await GameRecord.countDocuments({ user: me._id }), 1);
+  assert.equal(await GameRecord.countDocuments({ user: me._id }), 2);
+  assert.equal(await GameRecord.countDocuments({ user: me._id, playgroup: theirs }), 0);
 
   const put = (extra) => c.request('POST', `/game-records/${tagged._id}`, { _method: 'PUT', ...game(extra) });
   assert.equal((await put({ playgroup_id: theirs })).status, 400);

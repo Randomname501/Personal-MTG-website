@@ -116,10 +116,12 @@ router.get('/game-records', requireAuth, async (req, res, next) => {
 
 router.post('/game-records', requireAuth, async (req, res, next) => {
   try {
-    const input = await resolveGameInput(
-      { deckId: req.body.deck_id, body: req.body, result: req.body.result, playgroupId: req.body.playgroup_id },
-      req.currentUser._id
-    );
+    const fields = { deckId: req.body.deck_id, body: req.body, result: req.body.result };
+    // A stale playgroup (the user was just removed, or it was deleted) shouldn't
+    // cost them the game: fall back to saving it untagged.
+    const input =
+      (await resolveGameInput({ ...fields, playgroupId: req.body.playgroup_id }, req.currentUser._id)) ??
+      (req.body.playgroup_id ? await resolveGameInput(fields, req.currentUser._id) : null);
     // Silently ignore invalid quick-log input, matching prior behavior.
     if (!input) return res.redirect('/dashboard');
 
