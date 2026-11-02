@@ -335,3 +335,57 @@ test('group page shows only tagged games, ranks players, and hides private decks
 
   assert.match((await m.request('GET', location)).text, /GpSecretDeck/);
 });
+
+// --- Task 5: tagging games ---
+
+test('games can be tagged with my playgroup, never with someone else’s', async () => {
+  const c = await registerClient('TgPlayer');
+  const outsider = await registerClient('TgOutsider');
+  const me = await User.findOne({ username: 'TgPlayer' });
+  const deck = await Deck.create({ name: 'TgDeck', format: 'Modern', owner: me._id });
+  const mine = idFrom((await c.request('POST', '/playgroups', { name: 'Tg Mine' })).location);
+  const theirs = idFrom((await outsider.request('POST', '/playgroups', { name: 'Tg Theirs' })).location);
+  const game = (extra) => ({
+    deck_id: String(deck._id), result: 'win',
+    'opponents[0][name]': 'Ann', 'opponents[0][deck]': 'Elves', ...extra,
+  });
+
+  assert.match((await c.request('GET', '/dashboard')).text, /name="playgroup_id"/);
+  const loner = await registerClient('TgLoner');
+  assert.doesNotMatch((await loner.request('GET', '/dashboard')).text, /name="playgroup_id"/);
+
+  await c.request('POST', '/game-records', game({ playgroup_id: mine }));
+  const tagged = await GameRecord.findOne({ user: me._id });
+  assert.equal(String(tagged.playgroup), mine);
+
+  await c.request('POST', '/game-records', game({ playgroup_id: theirs }));
+  assert.equal(await GameRecord.countDocuments({ user: me._id }), 1);
+
+  const put = (extra) => c.request('POST', `/game-records/${tagged._id}`, { _method: 'PUT', ...game(extra) });
+  assert.equal((await put({ playgroup_id: theirs })).status, 400);
+  assert.equal((await put({ playgroup_id: '' })).status, 302);
+  assert.equal((await GameRecord.findById(tagged._id)).playgroup, undefined);
+});
+
+test('an unchanged tag survives editing after leaving the group', async () => {
+  const owner = await registerClient('TgHost');
+  const c = await registerClient('TgLeaver');
+  const me = await User.findOne({ username: 'TgLeaver' });
+  const deck = await Deck.create({ name: 'TgLeaverDeck', format: 'Modern', owner: me._id });
+  const { location } = await owner.request('POST', '/playgroups', { name: 'Tg Left' });
+  const gid = idFrom(location);
+  await Playgroup.updateOne({ _id: gid }, { $addToSet: { members: me._id } });
+  const rec = await mkGame(me, deck, { playgroup: gid });
+  await c.request('POST', `${location}/leave`);
+
+  const edit = await c.request('GET', `/game-records/${rec._id}/edit`);
+  assert.match(edit.text, /Tg Left/);
+  const res = await c.request('POST', `/game-records/${rec._id}`, {
+    _method: 'PUT', deck_id: String(deck._id), result: 'loss',
+    'opponents[0][name]': 'Ann', 'opponents[0][deck]': 'Elves', playgroup_id: gid,
+  });
+  assert.equal(res.status, 302);
+  const after1 = await GameRecord.findById(rec._id);
+  assert.equal(String(after1.playgroup), gid);
+  assert.equal(after1.result, 'loss');
+});
