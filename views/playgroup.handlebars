@@ -10,6 +10,44 @@
 
   <div class="profile-layout">
     <div class="profile-main">
+      <section id="group-players">
+        <h2>Standings</h2>
+        {{#if players.length}}
+          <ol class="profile-list">
+            {{#each players}}
+              <li>{{this.rank}}. <a href="{{profilePath this.username}}">{{this.username}}</a> &middot; {{this.wins}}W {{this.losses}}L{{#if this.draws}} {{this.draws}}D{{/if}}</li>
+            {{/each}}
+          </ol>
+        {{else}}
+          <p>No games logged to this playgroup yet.</p>
+        {{/if}}
+      </section>
+
+      {{#if decks.length}}
+        <section>
+          <h2>Decks</h2>
+          <ol class="profile-list">
+            {{#each decks}}
+              <li>{{this.rank}}. {{#if this.hidden}}<span class="hidden-deck">Hidden deck</span>{{else}}<a href="/decks/{{this.deckId}}">{{this.deckName}}</a>{{/if}} ({{this.owner}}) &middot; {{this.wins}}W {{this.losses}}L{{#if this.draws}} {{this.draws}}D{{/if}}</li>
+            {{/each}}
+          </ol>
+        </section>
+      {{/if}}
+
+      <section>
+        <h2>Recent games</h2>
+        {{#if games.length}}
+          <ul class="profile-list">
+            {{#each games}}
+              <li>{{formatDate this.createdAt}} &middot; {{this.username}} &middot; {{this.result}} with
+                {{#if this.deck}}<a href="/decks/{{this.deck._id}}">{{this.deck.name}}</a>{{else}}<span class="hidden-deck">Hidden deck</span>{{/if}}
+                vs {{formatOpponents this.opponents}}</li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p>No games yet.</p>
+        {{/if}}
+      </section>
     </div>
 
     <aside class="profile-side">

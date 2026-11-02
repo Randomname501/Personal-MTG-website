@@ -1,8 +1,10 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { Playgroup, User } from '../models/index.js';
+import { GameRecord, Playgroup, User, opponentList } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { findUserByName } from '../lib/friends.js';
+import { getPlayerLeaderboard, getDeckLeaderboard, maskHiddenDecks } from '../lib/leaderboards.js';
+import { canSeeDeck } from '../lib/visibility.js';
 import * as pg from '../lib/playgroups.js';
 
 const router = express.Router();
@@ -17,9 +19,30 @@ const usernames = async (ids) =>
 
 // Everything the group page renders, so error re-renders reuse it.
 export const groupView = async (group, viewer) => {
-  const [members, invites] = await Promise.all([usernames(group.members), usernames(group.invites)]);
+  const tagged = { playgroup: group._id };
+  const [members, invites, players, decks, records] = await Promise.all([
+    usernames(group.members),
+    usernames(group.invites),
+    getPlayerLeaderboard(tagged),
+    getDeckLeaderboard(tagged),
+    GameRecord.find(tagged)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(10)
+      .populate('user', 'username')
+      .populate('deck', 'name owner visibility')
+      .lean(),
+  ]);
   const ownerId = String(group.owner);
   return {
+    players,
+    decks: maskHiddenDecks(decks, viewer),
+    games: records.map((g) => ({
+      username: g.user?.username,
+      result: g.result,
+      createdAt: g.createdAt,
+      opponents: opponentList(g),
+      deck: g.deck && canSeeDeck(g.deck, viewer) ? { _id: g.deck._id, name: g.deck.name } : null,
+    })),
     title: group.name,
     group: { _id: group._id, name: group.name },
     isOwner: ownerId === String(viewer._id),

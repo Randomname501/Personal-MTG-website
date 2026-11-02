@@ -305,3 +305,33 @@ test('nav links to playgroups when logged in', async () => {
   const c = await registerClient('RtNav');
   assert.match((await c.request('GET', '/dashboard')).text, /href="\/playgroups"/);
 });
+
+// --- Task 4: group leaderboard and recent games ---
+
+test('group page shows only tagged games, ranks players, and hides private decks', async () => {
+  const owner = await registerClient('GpOwner');
+  const m = await registerClient('GpMember');
+  const ownerUser = await User.findOne({ username: 'GpOwner' });
+  const mUser = await User.findOne({ username: 'GpMember' });
+  const { location } = await owner.request('POST', '/playgroups', { name: 'Gp Pod' });
+  const id = idFrom(location);
+  await Playgroup.updateOne({ _id: id }, { $addToSet: { members: mUser._id } });
+
+  const ownerDeck = await Deck.create({ name: 'GpOwnerDeck', format: 'Modern', owner: ownerUser._id });
+  const secret = await Deck.create({ name: 'GpSecretDeck', format: 'Modern', owner: mUser._id, visibility: 'private' });
+  const vs = (name) => ({ opponents: [{ name, deck: 'Elves' }] });
+  await mkGame(ownerUser, ownerDeck, { playgroup: id, ...vs('TaggedOppA') });
+  await mkGame(ownerUser, ownerDeck, { playgroup: id, ...vs('TaggedOppB') });
+  await mkGame(mUser, secret, { playgroup: id, ...vs('TaggedOppC') });
+  await mkGame(ownerUser, ownerDeck, vs('UntaggedOpp'));
+
+  const page = (await owner.request('GET', location)).text;
+  assert.match(page, /TaggedOppA/);
+  assert.doesNotMatch(page, /UntaggedOpp/);
+  const standings = page.slice(page.indexOf('id="group-players"'));
+  assert.ok(standings.indexOf('GpOwner') < standings.indexOf('GpMember'), 'owner (2 wins) ranks above member (1 win)');
+  assert.match(page, /Hidden deck/);
+  assert.doesNotMatch(page, /GpSecretDeck/);
+
+  assert.match((await m.request('GET', location)).text, /GpSecretDeck/);
+});
