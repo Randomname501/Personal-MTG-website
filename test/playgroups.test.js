@@ -460,6 +460,13 @@ test('a member can cancel a pending invite; outsiders cannot', async () => {
   assert.equal((await Playgroup.findById(id)).invites.length, 1);
   assert.equal((await owner.request('POST', `${location}/uninvite`, { username: 'rtcancelguest' })).location, location);
   assert.equal((await Playgroup.findById(id)).invites.length, 0);
+
+  // Not just the owner: any member can cancel.
+  const member = await registerClient('RtCancelMember');
+  const memberUser = await User.findOne({ username: 'RtCancelMember' });
+  await Playgroup.updateOne({ _id: id }, { $addToSet: { members: memberUser._id, invites: guest._id } });
+  assert.equal((await member.request('POST', `${location}/uninvite`, { username: 'RtCancelGuest' })).location, location);
+  assert.equal((await Playgroup.findById(id)).invites.length, 0);
 });
 
 test('accepting an invite to a deleted group shows a message, not a 404', async () => {
