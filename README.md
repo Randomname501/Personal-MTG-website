@@ -66,7 +66,7 @@ The app is structured as a full-stack Express application with server-rendered H
 - Express Handlebars
 - MongoDB with Mongoose
 - bcryptjs for password hashing
-- dotenv for environment variables
+- Node's built-in `--env-file-if-exists` for loading `.env`
 - Vercel-ready server deployment settings
 
 ## Project Structure
@@ -135,7 +135,7 @@ The app is structured as a full-stack Express application with server-rendered H
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22.9+ (24 recommended; `npm start` and `npm run dev` use `--env-file-if-exists`)
 - npm
 - MongoDB instance or MongoDB Atlas connection string
 
