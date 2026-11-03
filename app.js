@@ -103,6 +103,17 @@ app.use(cors());
 app.use(attachUser);
 app.use(router);
 
+// Anything no route claimed.
+app.use((req, res) => res.status(404).render('404', { title: 'Not Found' }));
+
+// Every next(err) lands here: log it, show a friendly page, never the stack.
+app.use((err, req, res, next) => {
+  console.error(err);
+  if (res.headersSent) return next(err);
+  res.status(500).render('error', { title: 'Something went wrong' }, (renderErr, html) =>
+    renderErr ? res.type('text').send('Something went wrong.') : res.send(html));
+});
+
 export { app };
 
 // Vercel resolves this file as the function entrypoint (package.json "main") and
