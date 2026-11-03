@@ -64,7 +64,14 @@
           {{/each}}
         </ul>
         {{#if invites.length}}
-          <p class="profile-meta">Invited: {{#each invites}}{{this.username}}{{#unless @last}}, {{/unless}}{{/each}}</p>
+          <h3>Invited</h3>
+          <ul class="profile-list">
+            {{#each invites}}
+              <li>{{this.username}}
+                <form action="/playgroups/{{../group._id}}/uninvite" method="POST" style="display:inline"><input type="hidden" name="username" value="{{this.username}}"><button type="submit" class="button cancel-button">Cancel invite</button></form>
+              </li>
+            {{/each}}
+          </ul>
         {{/if}}
       </section>
 

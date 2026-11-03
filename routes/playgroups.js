@@ -102,7 +102,14 @@ router.get('/playgroups/:id', requireAuth, async (req, res, next) => {
 router.post('/playgroups/:id/accept', requireAuth, async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.redirect('/playgroups');
-    await pg.acceptInvite(req.params.id, req.currentUser._id);
+    const { modifiedCount } = await pg.acceptInvite(req.params.id, req.currentUser._id);
+    if (!modifiedCount) {
+      // Deleted group, or an invite that was cancelled meanwhile.
+      return res.status(400).render('playgroups', {
+        ...(await listView(req.currentUser)),
+        error: 'That invite is no longer available.',
+      });
+    }
     res.redirect(groupPath(req.params.id));
   } catch (err) {
     next(err);
@@ -128,6 +135,11 @@ const memberActions = {
       error,
       inviteDraft: String(req.body.username ?? ''),
     });
+  },
+  uninvite: async (req, res, group) => {
+    const target = await findUserByName(String(req.body.username ?? ''));
+    if (target) await pg.cancelInvite(group._id, req.currentUser._id, target._id);
+    res.redirect(groupPath(group._id));
   },
   leave: async (req, res, group) => {
     await pg.leave(group._id, req.currentUser._id);
