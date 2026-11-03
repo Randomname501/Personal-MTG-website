@@ -418,3 +418,31 @@ test('invite writes nothing once the inviter is no longer a member', async () =>
   await pg.invite(g, await asViewer(inviter), 'IrFriend');
   assert.deepEqual((await reload(g)).invites, []);
 });
+
+test('invite writes nothing if the target joins between the check and the write', async () => {
+  const owner = await mkUser('IjOwner');
+  const friend = await mkUser('IjFriend');
+  await befriend(owner, friend);
+  const g = await pg.createPlaygroup(owner._id, 'IjPod');
+  // Let invite() read the group, then have the target join (as an accept of an
+  // earlier invite would) before invite() writes.
+  const original = Playgroup.findById;
+  Playgroup.findById = function (...args) {
+    const query = original.apply(this, args);
+    return {
+      lean: async () => {
+        const doc = await query.lean();
+        await Playgroup.updateOne({ _id: g._id }, { $addToSet: { members: friend._id } });
+        return doc;
+      },
+    };
+  };
+  try {
+    assert.equal(await pg.invite(g, await asViewer(owner), 'IjFriend'), null);
+  } finally {
+    Playgroup.findById = original;
+  }
+  const after1 = await reload(g);
+  assert.ok(ids(after1.members).includes(String(friend._id)));
+  assert.deepEqual(after1.invites, []);
+});
