@@ -1,0 +1,97 @@
+<main class="profile-page">
+  <header class="profile-head">
+    <h1>{{group.name}}</h1>
+    <p class="profile-meta">{{members.length}} {{#if (eq members.length 1)}}member{{else}}members{{/if}}</p>
+    {{#unless isOwner}}
+      <form action="/playgroups/{{group._id}}/leave" method="POST"><button type="submit" class="button cancel-button">Leave playgroup</button></form>
+    {{/unless}}
+  </header>
+  {{#if error}}<div class="error-message">{{error}}</div>{{/if}}
+
+  <div class="profile-layout">
+    <div class="profile-main">
+      <section id="group-players">
+        <h2>Standings</h2>
+        {{#if players.length}}
+          <ol class="profile-list">
+            {{#each players}}
+              <li>{{this.rank}}. <a href="{{profilePath this.username}}">{{this.username}}</a> &middot; {{this.wins}}W {{this.losses}}L{{#if this.draws}} {{this.draws}}D{{/if}}</li>
+            {{/each}}
+          </ol>
+        {{else}}
+          <p>No games logged to this playgroup yet.</p>
+        {{/if}}
+      </section>
+
+      {{#if decks.length}}
+        <section>
+          <h2>Decks</h2>
+          <ol class="profile-list">
+            {{#each decks}}
+              <li>{{this.rank}}. {{#if this.hidden}}<span class="hidden-deck">Hidden deck</span>{{else}}<a href="/decks/{{this.deckId}}">{{this.deckName}}</a>{{/if}} ({{this.owner}}) &middot; {{this.wins}}W {{this.losses}}L{{#if this.draws}} {{this.draws}}D{{/if}}</li>
+            {{/each}}
+          </ol>
+        </section>
+      {{/if}}
+
+      <section>
+        <h2>Recent games</h2>
+        {{#if games.length}}
+          <ul class="profile-list">
+            {{#each games}}
+              <li>{{formatDate this.createdAt}} &middot; {{this.username}} &middot; {{this.result}} with
+                {{#if this.deck}}<a href="/decks/{{this.deck._id}}">{{this.deck.name}}</a>{{else}}<span class="hidden-deck">Hidden deck</span>{{/if}}
+                vs {{formatOpponents this.opponents}}</li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p>No games yet.</p>
+        {{/if}}
+      </section>
+    </div>
+
+    <aside class="profile-side">
+      <section>
+        <h2>Members</h2>
+        <ul class="profile-list">
+          {{#each members}}
+            <li>
+              <a href="{{profilePath this.username}}">{{this.username}}</a>{{#if this.isOwner}} <span class="visibility-badge">Owner</span>{{/if}}
+              {{#if ../isOwner}}{{#unless this.isOwner}}
+                <form action="/playgroups/{{../group._id}}/remove" method="POST" style="display:inline"><input type="hidden" name="username" value="{{this.username}}"><button type="submit" class="button cancel-button">Remove</button></form>
+              {{/unless}}{{/if}}
+            </li>
+          {{/each}}
+        </ul>
+        {{#if invites.length}}
+          <p class="profile-meta">Invited: {{#each invites}}{{this.username}}{{#unless @last}}, {{/unless}}{{/each}}</p>
+        {{/if}}
+      </section>
+
+      <section>
+        <h2>Invite a friend</h2>
+        <form action="/playgroups/{{group._id}}/invite" method="POST" class="deck-form">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required value="{{inviteDraft}}">
+          </div>
+          <button type="submit" class="submit-button">Invite</button>
+        </form>
+      </section>
+
+      {{#if isOwner}}
+        <section>
+          <h2>Manage</h2>
+          <form action="/playgroups/{{group._id}}/rename" method="POST" class="deck-form">
+            <div class="form-group">
+              <label for="name">Name</label>
+              <input type="text" id="name" name="name" maxlength="60" required value="{{group.name}}">
+            </div>
+            <button type="submit" class="submit-button">Rename</button>
+          </form>
+          <form action="/playgroups/{{group._id}}/delete" method="POST"><button type="submit" class="button cancel-button">Delete playgroup</button></form>
+        </section>
+      {{/if}}
+    </aside>
+  </div>
+</main>

@@ -5,3 +5,4 @@ export { User } from './User.js';
 export { Deck, DECK_FORMATS, DECK_VISIBILITY, MTG_COLORS } from './Deck.js';
 export { GameRecord, GAME_RESULTS, MAX_OPPONENTS, opponentList } from './GameRecord.js';
 export { Comment, COMMENT_MAX } from './Comment.js';
+export { Playgroup, PLAYGROUP_NAME_MAX } from './Playgroup.js';
