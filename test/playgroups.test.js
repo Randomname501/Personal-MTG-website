@@ -391,3 +391,30 @@ test('an unchanged tag survives editing after leaving the group', async () => {
   assert.equal(String(after1.playgroup), gid);
   assert.equal(after1.result, 'loss');
 });
+
+// --- Review fixes: stray invites must never let a removed member back in ---
+
+test('removing a member also drops any pending invite they hold', async () => {
+  const owner = await mkUser('RmOwner');
+  const m = await mkUser('RmMember');
+  const g = await pg.createPlaygroup(owner._id, 'RmPod');
+  // The state an invite/accept race can leave behind: both a member and invited.
+  await Playgroup.updateOne({ _id: g._id }, { $addToSet: { members: m._id, invites: m._id } });
+
+  await pg.removeMember(g._id, owner._id, m._id);
+  await pg.acceptInvite(g._id, m._id);
+  const after1 = await reload(g);
+  assert.deepEqual(ids(after1.members), [String(owner._id)]);
+  assert.deepEqual(after1.invites, []);
+});
+
+test('invite writes nothing once the inviter is no longer a member', async () => {
+  const owner = await mkUser('IrOwner');
+  const inviter = await mkUser('IrInviter');
+  const friend = await mkUser('IrFriend');
+  await befriend(inviter, friend);
+  const g = await pg.createPlaygroup(owner._id, 'IrPod');
+  // inviter loaded the page as a member, then got removed before submitting.
+  await pg.invite(g, await asViewer(inviter), 'IrFriend');
+  assert.deepEqual((await reload(g)).invites, []);
+});
