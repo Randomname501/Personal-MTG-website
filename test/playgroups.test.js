@@ -446,3 +446,49 @@ test('invite writes nothing if the target joins between the check and the write'
   assert.ok(ids(after1.members).includes(String(friend._id)));
   assert.deepEqual(after1.invites, []);
 });
+
+test('a member can cancel a pending invite; outsiders cannot', async () => {
+  const owner = await registerClient('RtCancelHost');
+  const out = await registerClient('RtCancelOut');
+  const guest = await mkUser('RtCancelGuest');
+  const { location } = await owner.request('POST', '/playgroups', { name: 'Cancel Pod' });
+  const id = idFrom(location);
+  await Playgroup.updateOne({ _id: id }, { $addToSet: { invites: guest._id } });
+  assert.match((await owner.request('GET', location)).text, /Cancel invite/);
+
+  assert.equal((await out.request('POST', `${location}/uninvite`, { username: 'RtCancelGuest' })).status, 404);
+  assert.equal((await Playgroup.findById(id)).invites.length, 1);
+  assert.equal((await owner.request('POST', `${location}/uninvite`, { username: 'rtcancelguest' })).location, location);
+  assert.equal((await Playgroup.findById(id)).invites.length, 0);
+});
+
+test('accepting an invite to a deleted group shows a message, not a 404', async () => {
+  const c = await registerClient('RtStaleGuest');
+  const me = await User.findOne({ username: 'RtStaleGuest' });
+  const g = await Playgroup.create({ name: 'Gone Pod', owner: me._id, members: [], invites: [me._id] });
+  await Playgroup.deleteOne({ _id: g._id });
+  const res = await c.request('POST', `/playgroups/${g._id}/accept`);
+  assert.equal(res.status, 400);
+  assert.match(res.text, /That invite is no longer available\./);
+});
+
+test('unknown paths get the 404 page; thrown errors get a friendly 500', async () => {
+  const c = await registerClient('RtErrUser');
+  const missing = await c.request('GET', '/no-such-page');
+  assert.equal(missing.status, 404);
+  assert.match(missing.text, /Not Found/);
+
+  const realFind = Playgroup.find;
+  const realError = console.error;
+  Playgroup.find = () => { throw new Error('boom secret'); };
+  console.error = () => {};
+  try {
+    const res = await c.request('GET', '/playgroups');
+    assert.equal(res.status, 500);
+    assert.match(res.text, /Something went wrong/);
+    assert.doesNotMatch(res.text, /boom secret/);
+  } finally {
+    Playgroup.find = realFind;
+    console.error = realError;
+  }
+});
