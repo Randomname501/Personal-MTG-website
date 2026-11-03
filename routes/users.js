@@ -6,7 +6,6 @@ import { requireAuth } from '../middleware/auth.js';
 import { profilePath } from '../lib/viewHelpers.js';
 import { safeBack } from '../lib/safeBack.js';
 import * as friendsLib from '../lib/friends.js';
-import { findUserByName } from '../lib/friends.js';
 import { canSeeDeck, visibleDeckFilter } from '../lib/visibility.js';
 
 const router = express.Router();
@@ -59,7 +58,7 @@ const profileView = async (profile, viewer) => {
 
 router.get('/users/:username', async (req, res, next) => {
   try {
-    const profile = await findUserByName(req.params.username);
+    const profile = await friendsLib.findUserByName(req.params.username);
     if (!profile) return res.status(404).render('404', { title: 'Not Found' });
     res.render('profile', await profileView(profile, req.currentUser));
   } catch (err) {
@@ -69,7 +68,7 @@ router.get('/users/:username', async (req, res, next) => {
 
 router.post('/users/:username/comments', requireAuth, async (req, res, next) => {
   try {
-    const profile = await findUserByName(req.params.username);
+    const profile = await friendsLib.findUserByName(req.params.username);
     if (!profile) return res.redirect('/dashboard');
     if (friendsLib.relation(req.currentUser, profile) !== 'friends') {
       return res.redirect(profilePath(profile.username));
@@ -111,7 +110,7 @@ const actions = {
 for (const [name, fn] of Object.entries(actions)) {
   router.post(`/users/:username/${name}`, requireAuth, async (req, res, next) => {
     try {
-      const target = await findUserByName(req.params.username);
+      const target = await friendsLib.findUserByName(req.params.username);
       if (!target) return res.redirect('/dashboard');
       await fn(req.currentUser._id, target._id);
       res.redirect(safeBack(req.body.back, profilePath(target.username)));

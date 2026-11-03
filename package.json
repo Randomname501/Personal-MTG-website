@@ -5,15 +5,13 @@
   "type": "module",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "node --watch app.js",
+    "start": "node --env-file-if-exists=.env app.js",
+    "dev": "node --env-file-if-exists=.env --watch app.js",
     "test": "node --test \"test/*.test.js\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "connect-mongo": "^6.0.0",
-    "cors": "^2.8.5",
-    "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "express-handlebars": "^8.0.1",
     "express-session": "^1.19.0",
