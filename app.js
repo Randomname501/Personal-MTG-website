@@ -1,6 +1,4 @@
-import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import { engine } from 'express-handlebars';
@@ -98,7 +96,6 @@ app.use((req, res, next) => {
   return sessionMiddleware(req, res, next);
 });
 app.use(rewriteUnsupportedBrowserMethods);
-app.use(cors());
 // Load the session user (if any) and build the nav before any route renders.
 app.use(attachUser);
 app.use(router);

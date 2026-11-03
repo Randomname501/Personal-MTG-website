@@ -18,7 +18,7 @@ const usernames = async (ids) =>
     .sort((a, b) => a.username.localeCompare(b.username));
 
 // Everything the group page renders, so error re-renders reuse it.
-export const groupView = async (group, viewer) => {
+const groupView = async (group, viewer) => {
   const tagged = { playgroup: group._id };
   const [members, invites, players, decks, records] = await Promise.all([
     usernames(group.members),
