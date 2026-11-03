@@ -6,6 +6,7 @@ import { decksRouter } from './decks.js';
 import { gameRecordsRouter } from './gameRecords.js';
 import { leaderboardsRouter } from './leaderboards.js';
 import { usersRouter } from './users.js';
+import { playgroupsRouter } from './playgroups.js';
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.use(decksRouter);
 router.use(gameRecordsRouter);
 router.use(leaderboardsRouter);
 router.use(usersRouter);
+router.use(playgroupsRouter);
 
 export { router };

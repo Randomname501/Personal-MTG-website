@@ -1,7 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { Deck, GameRecord, GAME_RESULTS, MAX_OPPONENTS, opponentList } from '../models/index.js';
+import { Deck, GameRecord, Playgroup, GAME_RESULTS, MAX_OPPONENTS, opponentList } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { listMemberGroups } from '../lib/playgroups.js';
 
 const router = express.Router();
 
@@ -27,15 +28,40 @@ const resolveOpponents = (body) => {
   return opponents;
 };
 
+// A submitted playgroup must be one the user is in, or the record's existing
+// tag (keepPlaygroup), so an unchanged tag survives leaving the group. Returns
+// the id, null for none, or false when invalid.
+const resolvePlaygroup = async (playgroupId, keepPlaygroup, userId) => {
+  if (!playgroupId) return null;
+  if (keepPlaygroup && String(playgroupId) === String(keepPlaygroup)) return keepPlaygroup;
+  if (!mongoose.Types.ObjectId.isValid(playgroupId)) return false;
+  const group = await Playgroup.exists({ _id: playgroupId, members: userId });
+  return group ? group._id : false;
+};
+
 // Validate a game-record submission for a user. Returns the owned deck, the
-// opponents, and the result on success; null if anything is invalid.
-const resolveGameInput = async ({ deckId, body, result }, userId) => {
+// opponents, the result and the playgroup (or null) on success; null if
+// anything is invalid.
+const resolveGameInput = async ({ deckId, body, result, playgroupId, keepPlaygroup }, userId) => {
   const opponents = resolveOpponents(body);
   if (!opponents || !GAME_RESULTS.includes(result)) return null;
   if (!mongoose.Types.ObjectId.isValid(deckId)) return null;
   const deck = await Deck.findOne({ _id: deckId, owner: userId });
   if (!deck) return null;
-  return { deck, opponents, result };
+  const playgroup = await resolvePlaygroup(playgroupId, keepPlaygroup, userId);
+  if (playgroup === false) return null;
+  return { deck, opponents, result, playgroup };
+};
+
+// The edit form's playgroup options: groups the user is in, plus the record's
+// current group if they have since left it.
+const playgroupOptions = async (userId, currentId) => {
+  const groups = await listMemberGroups(userId);
+  if (currentId && !groups.some((g) => String(g._id) === String(currentId))) {
+    const current = await Playgroup.findById(currentId).select('name').lean();
+    if (current) groups.unshift(current);
+  }
+  return groups;
 };
 
 // What the opponent fieldsets should be pre-filled with when a form re-renders
@@ -90,10 +116,12 @@ router.get('/game-records', requireAuth, async (req, res, next) => {
 
 router.post('/game-records', requireAuth, async (req, res, next) => {
   try {
-    const input = await resolveGameInput(
-      { deckId: req.body.deck_id, body: req.body, result: req.body.result },
-      req.currentUser._id
-    );
+    const fields = { deckId: req.body.deck_id, body: req.body, result: req.body.result };
+    // A stale playgroup (the user was just removed, or it was deleted) shouldn't
+    // cost them the game: fall back to saving it untagged.
+    const input =
+      (await resolveGameInput({ ...fields, playgroupId: req.body.playgroup_id }, req.currentUser._id)) ??
+      (req.body.playgroup_id ? await resolveGameInput(fields, req.currentUser._id) : null);
     // Silently ignore invalid quick-log input, matching prior behavior.
     if (!input) return res.redirect('/dashboard');
 
@@ -102,6 +130,7 @@ router.post('/game-records', requireAuth, async (req, res, next) => {
       deck: input.deck._id,
       opponents: input.opponents,
       result: input.result,
+      playgroup: input.playgroup ?? undefined,
     });
     res.redirect('/dashboard');
   } catch (err) {
@@ -114,10 +143,14 @@ router.get('/game-records/:id/edit', requireAuth, async (req, res, next) => {
     const record = await findOwnedRecord(req.params.id, req.currentUser._id);
     if (!record) return res.status(404).render('404', { title: 'Not Found' });
 
-    const decks = await listOwnedDecks(req.currentUser._id);
+    const [decks, playgroups] = await Promise.all([
+      listOwnedDecks(req.currentUser._id),
+      playgroupOptions(req.currentUser._id, record.playgroup),
+    ]);
     res.render('gameRecordForm', {
       title: 'Edit Game',
       decks,
+      playgroups,
       results: GAME_RESULTS,
       maxOpponents: MAX_OPPONENTS,
       values: {
@@ -127,6 +160,7 @@ router.get('/game-records/:id/edit', requireAuth, async (req, res, next) => {
         // form then writes it forward into the new shape.
         opponents: opponentList(record),
         result: record.result,
+        playgroup: record.playgroup ? String(record.playgroup) : '',
       },
     });
   } catch (err) {
@@ -140,16 +174,26 @@ router.put('/game-records/:id', requireAuth, async (req, res, next) => {
     if (!record) return res.status(404).render('404', { title: 'Not Found' });
 
     const input = await resolveGameInput(
-      { deckId: req.body.deck_id, body: req.body, result: req.body.result },
+      {
+        deckId: req.body.deck_id,
+        body: req.body,
+        result: req.body.result,
+        playgroupId: req.body.playgroup_id,
+        keepPlaygroup: record.playgroup,
+      },
       req.currentUser._id
     );
     if (!input) {
-      const decks = await listOwnedDecks(req.currentUser._id);
+      const [decks, playgroups] = await Promise.all([
+        listOwnedDecks(req.currentUser._id),
+        playgroupOptions(req.currentUser._id, record.playgroup),
+      ]);
       return res.status(400).render('gameRecordForm', {
         title: 'Edit Game',
         hasError: true,
-        recordError: `Please pick one of your decks, choose a result, and give every opponent (up to ${MAX_OPPONENTS}) both a name and a deck.`,
+        recordError: `Please pick one of your decks and playgroups, choose a result, and give every opponent (up to ${MAX_OPPONENTS}) both a name and a deck.`,
         decks,
+        playgroups,
         results: GAME_RESULTS,
         maxOpponents: MAX_OPPONENTS,
         values: {
@@ -157,6 +201,7 @@ router.put('/game-records/:id', requireAuth, async (req, res, next) => {
           deck: (req.body.deck_id || '').toString(),
           opponents: echoOpponents(req.body),
           result: req.body.result || '',
+          playgroup: (req.body.playgroup_id || '').toString(),
         },
       });
     }
@@ -166,6 +211,7 @@ router.put('/game-records/:id', requireAuth, async (req, res, next) => {
     // Saving migrates a legacy record forward; drop the superseded field.
     record.opponentDeck = undefined;
     record.result = input.result;
+    record.playgroup = input.playgroup ?? undefined;
     await record.save();
     res.redirect('/game-records');
   } catch (err) {

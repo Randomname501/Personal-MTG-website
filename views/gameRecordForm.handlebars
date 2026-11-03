@@ -22,6 +22,17 @@
         {{/each}}
       </select>
     </div>
+    {{#if playgroups.length}}
+    <div class="form-group">
+      <label for="playgroup_id">Playgroup (optional)</label>
+      <select name="playgroup_id" id="playgroup_id">
+        <option value="">None</option>
+        {{#each playgroups}}
+          <option value="{{this._id}}" {{#if (eq this._id ../values.playgroup)}}selected{{/if}}>{{this.name}}</option>
+        {{/each}}
+      </select>
+    </div>
+    {{/if}}
     <div class="form-actions">
       <button type="submit" class="submit-button">Save Changes</button>
       <a href="/game-records" class="button cancel-button">Cancel</a>

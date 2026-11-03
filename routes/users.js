@@ -6,15 +6,10 @@ import { requireAuth } from '../middleware/auth.js';
 import { profilePath } from '../lib/viewHelpers.js';
 import { safeBack } from '../lib/safeBack.js';
 import * as friendsLib from '../lib/friends.js';
+import { findUserByName } from '../lib/friends.js';
 import { canSeeDeck, visibleDeckFilter } from '../lib/visibility.js';
 
 const router = express.Router();
-
-export const findUserByName = (username) =>
-  User.findOne({ username })
-    .collation({ locale: 'en', strength: 2 })
-    .select('-passwordHash')
-    .lean();
 
 // Everything the profile page renders, so the comment 400 re-render reuses it.
 const profileView = async (profile, viewer) => {
@@ -30,7 +25,7 @@ const profileView = async (profile, viewer) => {
       .limit(10)
       .populate('deck', 'name owner visibility')
       .lean(),
-    User.find({ _id: { $in: profile.friends ?? [] } }).select('username').sort({ username: 1 }).lean(),
+    User.find({ _id: { $in: profile.friends ?? [] }, friends: profile._id }).select('username').sort({ username: 1 }).lean(),
     Comment.find({ profile: profile._id }).sort({ createdAt: -1 }).populate('author', 'username').lean(),
   ]);
 

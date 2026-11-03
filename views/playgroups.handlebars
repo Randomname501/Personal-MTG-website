@@ -1,0 +1,45 @@
+<main class="profile-page">
+  <header class="profile-head">
+    <h1>Playgroups</h1>
+  </header>
+  {{#if error}}<div class="error-message">{{error}}</div>{{/if}}
+
+  {{#if invites.length}}
+    <section>
+      <h2>Invites</h2>
+      <ul class="profile-list">
+        {{#each invites}}
+          <li>
+            {{this.name}}
+            <form action="/playgroups/{{this._id}}/accept" method="POST" style="display:inline"><button type="submit" class="button">Accept</button></form>
+            <form action="/playgroups/{{this._id}}/decline" method="POST" style="display:inline"><button type="submit" class="button cancel-button">Decline</button></form>
+          </li>
+        {{/each}}
+      </ul>
+    </section>
+  {{/if}}
+
+  <section>
+    <h2>Your playgroups</h2>
+    {{#if groups.length}}
+      <ul class="profile-list">
+        {{#each groups}}
+          <li><a href="/playgroups/{{this._id}}">{{this.name}}</a> &middot; {{this.memberCount}} {{#if (eq this.memberCount 1)}}member{{else}}members{{/if}}</li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <p>You&rsquo;re not in any playgroups yet.</p>
+    {{/if}}
+  </section>
+
+  <section>
+    <h2>Start a playgroup</h2>
+    <form action="/playgroups" method="POST" class="deck-form">
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" maxlength="60" required value="{{nameDraft}}">
+      </div>
+      <button type="submit" class="submit-button">Create</button>
+    </form>
+  </section>
+</main>

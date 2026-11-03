@@ -1,5 +1,6 @@
 import { User } from '../models/index.js';
 import { profilePath } from '../lib/viewHelpers.js';
+import { mutualFriends } from '../lib/friends.js';
 
 const HEADER_TITLE = 'MTG Tracker';
 
@@ -20,6 +21,7 @@ const loggedInNav = [
   { link: '/dashboard', text: 'Dashboard' },
   { link: '/game-records', text: 'Match History' },
   { link: '/decks', text: 'Browse Decks' },
+  { link: '/playgroups', text: 'Playgroups' },
   { link: '/logout', text: 'Logout' },
 ];
 
@@ -35,6 +37,8 @@ export const attachUser = async (req, res, next) => {
       // prototype-access guard blocks Mongoose document getters). Drop the hash.
       const user = await User.findById(req.session.userId).select('-passwordHash').lean();
       if (user) {
+        // Every friends-only check reads the viewer's friends, so keep only mutual ones.
+        user.friends = await mutualFriends(user);
         req.currentUser = user;
         res.locals.currentUser = user;
         const pending = user.friendRequests?.length ?? 0;

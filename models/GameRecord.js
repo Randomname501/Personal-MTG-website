@@ -46,6 +46,12 @@ const gameRecordSchema = new mongoose.Schema(
       required: true,
       enum: GAME_RESULTS,
     },
+    // Optional: the playgroup this game was played in.
+    playgroup: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Playgroup',
+      index: true,
+    },
   },
   { timestamps: true }
 );
