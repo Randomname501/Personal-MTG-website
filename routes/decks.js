@@ -6,6 +6,8 @@ import { getDeckStats } from '../lib/stats.js';
 import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
 import { parseDecklist } from '../lib/decklist.js';
+import Anthropic from '@anthropic-ai/sdk';
+import { runDeckAgent } from '../lib/deckAgent.js';
 import { safeBack } from '../lib/safeBack.js';
 import { canSeeDeck, visibleDeckFilter } from '../lib/visibility.js';
 
@@ -129,7 +131,8 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
       mode: groupMode,
       commander: hasCommander ? { ...commanderAsCard, name: deck.commander, imageUrl: deck.commanderImageUrl } : undefined,
     });
-    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode });
+    const assistantEnabled = isOwner && Boolean(process.env.ANTHROPIC_API_KEY);
+    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode, assistantEnabled });
   } catch (err) {
     next(err);
   }
@@ -198,6 +201,44 @@ router.post('/decks/:id/cards', requireAuth, async (req, res, next) => {
     await deck.save();
 
     res.redirect(back);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The deck helper agent (lib/deckAgent.js). JSON in, JSON out. The browser keeps
+// the transcript and sends it back with each question; nothing is saved here.
+router.post('/decks/:id/assistant', async (req, res, next) => {
+  try {
+    // A JSON caller can't follow requireAuth's redirect to /login, so say it plainly.
+    if (!req.currentUser) return res.status(401).json({ error: 'Your session ended. Log in again to keep chatting.' });
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).json({ error: 'Not found' });
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'The assistant is not set up.' });
+
+    const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
+    const { messages } = req.body;
+    if (!question || question.length > 1000) {
+      return res.status(400).json({ error: 'Ask a question of up to 1000 characters.' });
+    }
+    if (!Array.isArray(messages) || JSON.stringify(messages).length > 300_000) {
+      return res.status(400).json({ error: 'This conversation is too long. Reload the page to start over.' });
+    }
+
+    let result;
+    try {
+      result = await runDeckAgent({
+        client: new Anthropic(), // reads ANTHROPIC_API_KEY (and ANTHROPIC_BASE_URL in tests)
+        deck: deck.toObject(),
+        messages,
+        question,
+        signal: AbortSignal.timeout(60_000), // one budget for the whole question
+      });
+    } catch (err) {
+      console.error('Deck assistant failed:', err);
+      return res.status(502).json({ error: 'The assistant is unavailable right now.' });
+    }
+    res.json(result);
   } catch (err) {
     next(err);
   }

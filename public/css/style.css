@@ -1345,3 +1345,22 @@ main:not(.landing) h2 {
 .comment { border-top: 1px solid rgba(128, 128, 128, 0.3); padding: 0.5rem 0; }
 .comment-meta { font-size: 0.85em; opacity: 0.8; margin: 0 0 0.25rem; }
 .comment-body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 0.25rem; }
+
+/* ---- Deck helper (chat panel on the deck page) ---- */
+.deck-assistant {
+  margin: 1.6rem 0;
+  padding: 1.2rem;
+  background: var(--paper-deep);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.deck-assistant h2 { margin-top: 0; }
+.deck-assistant__hint { color: var(--ink-soft); font-size: 0.9rem; }
+.deck-assistant__log { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+.deck-assistant__log .card-grid { margin-bottom: 0; }
+.deck-assistant__msg { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.deck-assistant__msg--user { font-weight: 600; }
+.deck-assistant__msg--user::before { content: 'You: '; color: var(--ink-soft); }
+.deck-assistant__msg--status { color: var(--ink-soft); font-style: italic; }
+.deck-assistant__form { display: flex; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap; }
+.deck-assistant__form .form-group { flex: 1 1 14rem; margin-bottom: 0; }

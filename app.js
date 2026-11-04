@@ -74,7 +74,9 @@ app.set('view engine', 'handlebars');
 app.set('views', path.join(rootDir, 'views'));
 
 app.use(express.static(path.join(rootDir, 'public')));
-app.use(express.json());
+// The deck assistant posts its whole chat transcript (capped at 300 KB in the
+// route), so the default 100 KB body limit is too small.
+app.use(express.json({ limit: '400kb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Ensure a database connection before anything downstream touches a model. Under
@@ -107,6 +109,8 @@ app.use((req, res) => res.status(404).render('404', { title: 'Not Found' }));
 app.use((err, req, res, next) => {
   console.error(err);
   if (res.headersSent) return next(err);
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'That request is too large.' });
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: "That request isn't valid JSON." });
   res.status(500).render('error', { title: 'Something went wrong' }, (renderErr, html) =>
     renderErr ? res.type('text').send('Something went wrong.') : res.send(html));
 });
