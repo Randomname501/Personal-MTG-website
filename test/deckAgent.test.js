@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { withColorIdentity, runDeckAgent } from '../lib/deckAgent.js';
+import { withDeckFilters, runDeckAgent } from '../lib/deckAgent.js';
 
 // --- A fake Claude: replays scripted responses and records every request. ---
 const fakeClient = (script) => {
@@ -52,21 +52,40 @@ const fakeSearch = (cards = [ELVES, MYSTIC]) => {
   return fn;
 };
 
-// --- withColorIdentity ---
+// --- withDeckFilters ---
+// Claude's query goes in parentheses so a top-level `or` can't escape our filters.
 
-test('withColorIdentity appends deck colors', () => {
-  assert.equal(withColorIdentity('t:creature', ['G', 'B']), 't:creature id<=gb');
+test('withDeckFilters appends deck colors and format', () => {
+  assert.equal(withDeckFilters('t:creature', { colors: ['G', 'B'], format: 'Commander' }), '(t:creature) id<=gb f:commander');
+});
+
+test('withDeckFilters keeps a top-level or inside the filters', () => {
+  assert.equal(withDeckFilters('t:elf or t:druid', { colors: ['G'], format: 'Modern' }), '(t:elf or t:druid) id<=g f:modern');
 });
 
 // Scryfall ANDs filters, so always appending is safe: a narrower identity Claude
 // wrote still wins, and a wider one (id>=wubrg) can't sneak off-color cards in.
-test('withColorIdentity always enforces the deck identity', () => {
-  assert.equal(withColorIdentity('id<=g t:elf', ['G', 'B']), 'id<=g t:elf id<=gb');
-  assert.equal(withColorIdentity('id>=wubrg t:elf', ['G', 'B']), 'id>=wubrg t:elf id<=gb');
+test('withDeckFilters strips parens from an unbalanced query so it cannot escape the filters', () => {
+  assert.equal(withDeckFilters('t:elf) or (t:wizard', { colors: ['G'], format: 'Commander' }), '(t:elf  or  t:wizard) id<=g f:commander');
+  assert.equal(withDeckFilters('(t:elf or t:druid) cmc<3', { colors: ['G'] }), '((t:elf or t:druid) cmc<3) id<=g');
+  assert.equal(withDeckFilters('o:"(" t:elf', { colors: ['G'] }), '(o:"(" t:elf) id<=g');
 });
 
-test('withColorIdentity leaves query alone when deck has no colors', () => {
-  assert.equal(withColorIdentity('t:elf', []), 't:elf');
+test('withDeckFilters drops an unclosed quote so it cannot swallow the filters', () => {
+  assert.equal(withDeckFilters('t:elf o:"foo) or (t:wizard', { colors: ['G'] }), '(t:elf o: foo  or  t:wizard) id<=g');
+});
+
+test('withDeckFilters with an empty query searches by the filters alone', () => {
+  assert.equal(withDeckFilters('  ', { colors: ['G'], format: 'Modern' }), 'id<=g f:modern');
+});
+
+test('withDeckFilters always enforces the deck identity', () => {
+  assert.equal(withDeckFilters('id>=wubrg t:elf', { colors: ['G', 'B'], format: 'Other' }), '(id>=wubrg t:elf) id<=gb');
+});
+
+test('withDeckFilters leaves query alone when deck has no colors and no Scryfall format', () => {
+  assert.equal(withDeckFilters('t:elf', { colors: [], format: 'Limited' }), 't:elf');
+  assert.equal(withDeckFilters('t:elf', { colors: [], format: 'Standard' }), '(t:elf) f:standard');
 });
 
 // --- runDeckAgent ---
@@ -86,7 +105,7 @@ test('search then recommend then end_turn', async () => {
   assert.equal(out.recommendations[0].scryfallId, 'elves-1');
   assert.equal(out.recommendations[0].name, 'Llanowar Elves');
   assert.equal(out.recommendations[0].reason, 'One-drop ramp');
-  assert.deepEqual(search.queries, ['t:elf o:"add {G}" id<=gb']);
+  assert.deepEqual(search.queries, ['(t:elf o:"add {G}") id<=gb f:commander']);
 
   const params = client.calls[0].params;
   assert.equal(params.model, 'claude-opus-5-5');
@@ -105,6 +124,19 @@ test('made-up ids are dropped', async () => {
     endTurn('ok'),
   ]);
   const out = await runDeckAgent({ client, deck: DECK, messages: [], question: 'q', search: fakeSearch() });
+  assert.deepEqual(out.recommendations, []);
+});
+
+// A search returns one printing per card, so the deck may hold the same card
+// under a different scryfallId (e.g. from a decklist import).
+test('a card in the deck under another printing is dropped', async () => {
+  const otherPrinting = card('mystic-2', 'Elvish Mystic');
+  const client = fakeClient([
+    searchCall('t1', 't:elf'),
+    recommendCall('t2', [{ scryfallId: 'mystic-2', reason: 'same card, new printing' }]),
+    endTurn('ok'),
+  ]);
+  const out = await runDeckAgent({ client, deck: DECK, messages: [], question: 'q', search: fakeSearch([otherPrinting]) });
   assert.deepEqual(out.recommendations, []);
 });
 

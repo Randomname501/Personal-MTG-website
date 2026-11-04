@@ -110,6 +110,7 @@ app.use((err, req, res, next) => {
   console.error(err);
   if (res.headersSent) return next(err);
   if (err.type === 'entity.too.large') return res.status(413).json({ error: 'That request is too large.' });
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: "That request isn't valid JSON." });
   res.status(500).render('error', { title: 'Something went wrong' }, (renderErr, html) =>
     renderErr ? res.type('text').send('Something went wrong.') : res.send(html));
 });
