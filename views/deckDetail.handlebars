@@ -39,6 +39,10 @@
     </div>
   </header>
 
+  {{#if assistantEnabled}}
+    <section id="deck-assistant" class="deck-assistant" data-deck-id="{{deck._id}}"></section>
+  {{/if}}
+
   <section class="deck-cards-view">
     <div class="deck-cards-view__head">
       <h2>Cards ({{cardCount}})</h2>
