@@ -20,6 +20,22 @@ document.addEventListener('DOMContentLoaded', () => {
     return node;
   };
 
+  // After an Add, re-fetch this page and swap in the parts that depend on the
+  // cards (the list with its count, and the breakdown), leaving the chat alone.
+  const refreshDeckSections = async () => {
+    const res = await fetch(location.href);
+    if (!res.ok) return;
+    const fresh = new DOMParser().parseFromString(await res.text(), 'text/html');
+    const swap = (selector) => {
+      const next = fresh.querySelector(selector);
+      const current = document.querySelector(selector);
+      if (next && current) current.replaceWith(next);
+      else if (next) document.querySelector('main').append(next); // breakdown appears after the first card
+    };
+    swap('.deck-cards-view');
+    swap('.deck-breakdown');
+  };
+
   const say = (who, text) => log.append(el('p', `deck-assistant__msg deck-assistant__msg--${who}`, text));
 
   // One suggested card: image, details, the reason, and an Add button.
@@ -55,7 +71,11 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch {
         add.disabled = false;
         add.textContent = 'Add (failed, try again)';
+        return;
       }
+      // The card is saved either way; a failed redraw only means the list
+      // stays stale until a reload.
+      refreshDeckSections().catch(() => {});
     });
     body.append(add);
     article.append(body);
