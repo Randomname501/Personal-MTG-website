@@ -90,8 +90,8 @@ test('search then recommend then end_turn', async () => {
   assert.ok(params.betas.includes('server-side-fallback-2026-07-01'));
   assert.equal(params.fallbacks, 'default');
   assert.deepEqual(params.output_config, { effort: 'low' });
-  assert.match(params.system, /Meren of Clan Nel Toth/);
-  assert.match(params.system, /1 Elvish Mystic/);
+  assert.match(JSON.stringify(params.messages[0]), /Meren of Clan Nel Toth/);
+  assert.match(JSON.stringify(params.messages[0]), /1 Elvish Mystic/);
   assert.equal(client.calls.length, 3);
 });
 
@@ -178,6 +178,28 @@ test('assistant content is appended unchanged', async () => {
   const client = fakeClient([{ stop_reason: 'end_turn', content: [thinking, { type: 'text', text: 'hi' }] }]);
   const out = await runDeckAgent({ client, deck: DECK, messages: [], question: 'q', search: fakeSearch() });
   assert.deepEqual(out.messages.at(-1), { role: 'assistant', content: [thinking, { type: 'text', text: 'hi' }] });
+});
+
+// The API rejects earlier thinking blocks if the system prompt changes between
+// questions, so the deck (which changes as cards are added) must not live there.
+test('system prompt stays identical as the deck changes; each question carries a fresh deck snapshot', async () => {
+  const first = fakeClient([endTurn('one')]);
+  const out1 = await runDeckAgent({ client: first, deck: DECK, messages: [], question: 'q1', search: fakeSearch() });
+
+  const grown = { ...DECK, cards: [...DECK.cards, { scryfallId: 'elves-1', name: 'Llanowar Elves', quantity: 1 }] };
+  const second = fakeClient([endTurn('two')]);
+  await runDeckAgent({ client: second, deck: grown, messages: out1.messages, question: 'q2', search: fakeSearch() });
+
+  const [p1, p2] = [first.calls[0].params, second.calls[0].params];
+  assert.equal(p1.system, p2.system);
+  assert.doesNotMatch(p1.system, /Elvish Mystic/);
+  // Earlier turns are replayed exactly as they were.
+  assert.deepEqual(p2.messages.slice(0, out1.messages.length), out1.messages);
+  // The new question's message holds the current deck and the question.
+  const newest = JSON.stringify(p2.messages.at(-1));
+  assert.match(newest, /1 Llanowar Elves/);
+  assert.match(newest, /Meren of Clan Nel Toth/);
+  assert.match(newest, /q2/);
 });
 
 test('the abort signal is passed to every Claude call', async () => {
