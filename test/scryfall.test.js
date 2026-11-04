@@ -14,6 +14,8 @@ const NORMAL_CARD = {
   cmc: 2,
   colors: ['U'],
   type_line: 'Instant',
+  oracle_text: 'Counter target spell.',
+  prices: { usd: '1.50' },
   image_uris: { normal: 'http://img/cs.jpg' },
 };
 const DFC_CARD = {
@@ -23,8 +25,8 @@ const DFC_CARD = {
   colors: ['U'],
   type_line: 'Creature — Human Wizard // Creature — Insect',
   card_faces: [
-    { mana_cost: '{U}', image_uris: { normal: 'http://img/delver.jpg' } },
-    { mana_cost: '', image_uris: { normal: 'http://img/aberration.jpg' } },
+    { mana_cost: '{U}', oracle_text: 'Transform at upkeep.', image_uris: { normal: 'http://img/delver.jpg' } },
+    { mana_cost: '', oracle_text: 'Flying', image_uris: { normal: 'http://img/aberration.jpg' } },
   ],
 };
 
@@ -98,6 +100,8 @@ test('searchCards normalizes a card into the snapshot shape', async () => {
     colors: ['U'],
     typeLine: 'Instant',
     imageUrl: 'http://img/cs.jpg',
+    oracleText: 'Counter target spell.',
+    priceUsd: '1.50',
   });
 });
 
@@ -115,6 +119,8 @@ test('getCardById pulls mana cost and image from the front face of a DFC', async
   assert.equal(card.manaCost, '{U}');
   assert.equal(card.imageUrl, 'http://img/delver.jpg');
   assert.equal(card.cmc, 1);
+  assert.equal(card.oracleText, 'Transform at upkeep.\n//\nFlying');
+  assert.equal(card.priceUsd, null);
 });
 
 test('getCardByName fuzzy-matches and normalizes the card', async () => {
