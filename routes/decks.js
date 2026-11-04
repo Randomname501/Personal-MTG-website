@@ -208,8 +208,10 @@ router.post('/decks/:id/cards', requireAuth, async (req, res, next) => {
 
 // The deck helper agent (lib/deckAgent.js). JSON in, JSON out. The browser keeps
 // the transcript and sends it back with each question; nothing is saved here.
-router.post('/decks/:id/assistant', requireAuth, async (req, res, next) => {
+router.post('/decks/:id/assistant', async (req, res, next) => {
   try {
+    // A JSON caller can't follow requireAuth's redirect to /login, so say it plainly.
+    if (!req.currentUser) return res.status(401).json({ error: 'Your session ended. Log in again to keep chatting.' });
     const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
     if (!deck) return res.status(404).json({ error: 'Not found' });
     if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'The assistant is not set up.' });

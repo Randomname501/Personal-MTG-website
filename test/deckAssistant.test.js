@@ -145,6 +145,15 @@ test('non-owner gets 404', async () => {
   assert.equal(script.length, 3, 'Claude must not be called');
 });
 
+test('logged-out request gets a 401 JSON error, not a login redirect', async () => {
+  script = searchThenRecommend();
+  const deck = await aliceDeck();
+  const res = await ask(makeClient(), deck._id, { question: 'cheap ramp', messages: [] });
+  assert.equal(res.status, 401);
+  assert.match(res.data.error, /log in/i);
+  assert.equal(script.length, 3, 'Claude must not be called');
+});
+
 test('rejects bad bodies with 400', async () => {
   const deck = await aliceDeck();
   const bad = [

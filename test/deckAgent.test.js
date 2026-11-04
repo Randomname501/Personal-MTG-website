@@ -58,8 +58,11 @@ test('withColorIdentity appends deck colors', () => {
   assert.equal(withColorIdentity('t:creature', ['G', 'B']), 't:creature id<=gb');
 });
 
-test('withColorIdentity keeps an explicit identity', () => {
-  assert.equal(withColorIdentity('id<=g t:elf', ['G', 'B']), 'id<=g t:elf');
+// Scryfall ANDs filters, so always appending is safe: a narrower identity Claude
+// wrote still wins, and a wider one (id>=wubrg) can't sneak off-color cards in.
+test('withColorIdentity always enforces the deck identity', () => {
+  assert.equal(withColorIdentity('id<=g t:elf', ['G', 'B']), 'id<=g t:elf id<=gb');
+  assert.equal(withColorIdentity('id>=wubrg t:elf', ['G', 'B']), 'id>=wubrg t:elf id<=gb');
 });
 
 test('withColorIdentity leaves query alone when deck has no colors', () => {

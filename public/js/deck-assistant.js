@@ -66,6 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'content-type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ scryfall_id: card.scryfallId }),
         });
+        // A logged-out add is redirected to the login page, which still looks "ok".
+        if (new URL(res.url).pathname === '/login') {
+          add.textContent = 'Log in again to add';
+          return;
+        }
         if (!res.ok) throw new Error();
         add.textContent = 'Added ✓';
       } catch {
