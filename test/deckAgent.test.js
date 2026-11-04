@@ -71,6 +71,10 @@ test('withDeckFilters strips parens from an unbalanced query so it cannot escape
   assert.equal(withDeckFilters('o:"(" t:elf', { colors: ['G'] }), '(o:"(" t:elf) id<=g');
 });
 
+test('withDeckFilters drops an unclosed quote so it cannot swallow the filters', () => {
+  assert.equal(withDeckFilters('t:elf o:"foo) or (t:wizard', { colors: ['G'] }), '(t:elf o: foo  or  t:wizard) id<=g');
+});
+
 test('withDeckFilters with an empty query searches by the filters alone', () => {
   assert.equal(withDeckFilters('  ', { colors: ['G'], format: 'Modern' }), 'id<=g f:modern');
 });
