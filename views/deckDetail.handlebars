@@ -40,7 +40,19 @@
   </header>
 
   {{#if assistantEnabled}}
-    <section id="deck-assistant" class="deck-assistant" data-deck-id="{{deck._id}}"></section>
+    <section id="deck-assistant" class="deck-assistant" data-deck-id="{{deck._id}}">
+      <h2>Deck helper</h2>
+      <p class="deck-assistant__hint">Ask for cards in plain English, like "cheap ramp under $2" or "more card draw".</p>
+      <div class="deck-assistant__log" aria-live="polite"></div>
+      <form class="deck-assistant__form">
+        <div class="form-group">
+          <label for="deck-assistant-question">Your question</label>
+          <input id="deck-assistant-question" name="question" type="text" maxlength="1000" required autocomplete="off" />
+        </div>
+        <button type="submit" class="button">Ask</button>
+      </form>
+    </section>
+    <script src="/js/deck-assistant.js" defer></script>
   {{/if}}
 
   <section class="deck-cards-view">
