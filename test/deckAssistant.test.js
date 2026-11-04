@@ -9,7 +9,7 @@ import { Deck } from '../models/index.js';
 // --- HTTP client with its own cookie jar; sends forms or JSON ---
 const makeClient = () => {
   const cookies = new Map();
-  const request = async (method, path, { form, json } = {}) => {
+  const request = async (method, path, { form, json, raw } = {}) => {
     const headers = {};
     if (cookies.size) headers.cookie = [...cookies].map(([k, v]) => `${k}=${v}`).join('; ');
     let body;
@@ -24,6 +24,10 @@ const makeClient = () => {
     if (json !== undefined) {
       headers['content-type'] = 'application/json';
       body = JSON.stringify(json);
+    }
+    if (raw !== undefined) {
+      headers['content-type'] = 'application/json';
+      body = raw; // sent as-is, e.g. to test malformed JSON
     }
     const res = await fetch(baseUrl + path, { method, headers, body, redirect: 'manual' });
     for (const c of res.headers.getSetCookie()) {
@@ -175,6 +179,13 @@ test('a body over the parser limit gets a 413, not a 500', async () => {
   const deck = await aliceDeck();
   const res = await ask(alice, deck._id, { question: 'ok', messages: [{ role: 'user', content: 'x'.repeat(500_000) }] });
   assert.equal(res.status, 413);
+  assert.ok(res.data.error);
+});
+
+test('malformed JSON gets a 400 JSON error, not a 500', async () => {
+  const deck = await aliceDeck();
+  const res = await alice.request('POST', `/decks/${deck._id}/assistant`, { raw: '{"question": "oops' });
+  assert.equal(res.status, 400);
   assert.ok(res.data.error);
 });
 
