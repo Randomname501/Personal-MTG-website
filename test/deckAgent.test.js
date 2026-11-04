@@ -65,6 +65,16 @@ test('withDeckFilters keeps a top-level or inside the filters', () => {
 
 // Scryfall ANDs filters, so always appending is safe: a narrower identity Claude
 // wrote still wins, and a wider one (id>=wubrg) can't sneak off-color cards in.
+test('withDeckFilters strips parens from an unbalanced query so it cannot escape the filters', () => {
+  assert.equal(withDeckFilters('t:elf) or (t:wizard', { colors: ['G'], format: 'Commander' }), '(t:elf  or  t:wizard) id<=g f:commander');
+  assert.equal(withDeckFilters('(t:elf or t:druid) cmc<3', { colors: ['G'] }), '((t:elf or t:druid) cmc<3) id<=g');
+  assert.equal(withDeckFilters('o:"(" t:elf', { colors: ['G'] }), '(o:"(" t:elf) id<=g');
+});
+
+test('withDeckFilters with an empty query searches by the filters alone', () => {
+  assert.equal(withDeckFilters('  ', { colors: ['G'], format: 'Modern' }), 'id<=g f:modern');
+});
+
 test('withDeckFilters always enforces the deck identity', () => {
   assert.equal(withDeckFilters('id>=wubrg t:elf', { colors: ['G', 'B'], format: 'Other' }), '(id>=wubrg t:elf) id<=gb');
 });
