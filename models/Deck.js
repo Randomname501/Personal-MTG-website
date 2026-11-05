@@ -68,6 +68,15 @@ const deckSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Second commander (Partner, Background and so on), checked by lib/commanderPair.js.
+    partner: {
+      type: String,
+      trim: true,
+    },
+    partnerImageUrl: {
+      type: String,
+      default: '',
+    },
     archetype: {
       type: String,
       trim: true,
