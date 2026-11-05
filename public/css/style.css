@@ -531,8 +531,14 @@ main:not(.landing) h2 {
 }
 .deck-card h3 { font-family: 'Cinzel', serif; margin-bottom: 0.3rem; }
 .deck-card p { color: var(--ink-soft); font-size: 0.92rem; }
+.deck-card__commanders {
+  display: flex;
+  gap: 0.4rem;
+}
+
 .deck-card__commander {
   width: 100%;
+  min-width: 0;
   border-radius: 4px;
   margin-bottom: 0.8rem;
 }
@@ -979,7 +985,9 @@ main:not(.landing) h2 {
 
 /* Deck view: commander header + Moxfield-style type columns */
 .deck-hero { display: flex; gap: 1.6rem; align-items: flex-start; margin-bottom: 2rem; }
-.deck-hero__commander { width: 14rem; max-width: 40%; border-radius: 10px; box-shadow: var(--shadow-card); }
+.deck-hero__commanders { display: flex; gap: 0.6rem; flex-shrink: 0; width: 14rem; max-width: 40%; }
+.deck-hero__commanders:has(img + img) { width: 24rem; max-width: 55%; }
+.deck-hero__commander { width: 100%; min-width: 0; border-radius: 10px; box-shadow: var(--shadow-card); }
 .deck-hero__info { flex: 1; min-width: 0; }
 .deck-hero__desc { color: var(--ink-soft); margin-bottom: 1rem; }
 .deck-hero .deck-meta { margin-bottom: 0.8rem; }
@@ -1040,7 +1048,8 @@ main:not(.landing) h2 {
 .current-commander img { width: 4rem; border-radius: 4px; box-shadow: var(--shadow-card); }
 @media (max-width: 520px) {
   .deck-hero { flex-direction: column; }
-  .deck-hero__commander { max-width: 60%; }
+  .deck-hero__commanders { max-width: 60%; }
+  .deck-hero__commanders:has(img + img) { max-width: 100%; }
 }
 
 .deck-cards-view { margin-bottom: 1.6rem; }

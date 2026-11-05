@@ -135,20 +135,27 @@ test('groupCards cmc mode buckets nonlands 0..7+, lands last, sorted by name, em
 
 test('groupCards puts a named commander first and omits it when there is no name', () => {
   const cards = [card({ name: 'Bolt', typeLine: 'Instant', cmc: 1 })];
-  const withCmdr = groupCards(cards, { commander: { name: 'Atraxa', imageUrl: 'http://img/a.jpg' } });
+  const withCmdr = groupCards(cards, { commanders: [{ name: 'Atraxa', imageUrl: 'http://img/a.jpg' }] });
   assert.equal(withCmdr[0].label, 'Commander');
   assert.equal(withCmdr[0].count, 1);
   assert.deepEqual(withCmdr[0].cards, [{ name: 'Atraxa', imageUrl: 'http://img/a.jpg', quantity: 1 }]);
   assert.equal(withCmdr[1].label, 'Instants');
 
-  assert.deepEqual(groupCards(cards, { commander: { name: '', imageUrl: '' } }).map((x) => x.label), ['Instants']);
-  assert.deepEqual(groupCards([], { mode: 'cmc', commander: { name: 'Atraxa' } }).map((x) => x.label), ['Commander']);
+  assert.deepEqual(groupCards(cards, { commanders: [] }).map((x) => x.label), ['Instants']);
+  assert.deepEqual(groupCards([], { mode: 'cmc', commanders: [{ name: 'Atraxa' }] }).map((x) => x.label), ['Commander']);
 });
 
 test('groupCards falls back to type mode and treats non-arrays as empty', () => {
   const cards = [card({ name: 'Bolt', typeLine: 'Instant', cmc: 1 })];
   assert.deepEqual(groupCards(cards, { mode: 'color' }).map((x) => x.label), ['Instants']);
   assert.deepEqual(groupCards(undefined), []);
+});
+
+test('groupCards lists two commanders in one group counted as two', () => {
+  const [group] = groupCards([], { commanders: [{ name: 'Kodama' }, { name: 'Kediss' }] });
+  assert.equal(group.label, 'Commanders');
+  assert.equal(group.count, 2);
+  assert.deepEqual(group.cards.map((c) => [c.name, c.quantity]), [['Kodama', 1], ['Kediss', 1]]);
 });
 
 test('withoutCommander drops one copy of the commander by name, case-insensitively', () => {

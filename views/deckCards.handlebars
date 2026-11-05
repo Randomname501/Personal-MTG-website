@@ -1,6 +1,7 @@
 <main>
   <p><a href="/decks/{{deck._id}}">&larr; Back to {{deck.name}}</a></p>
   <h1>Manage Cards: {{deck.name}}</h1>
+  {{#if commanderError}}<div class="error-message" role="alert">{{commanderError}}</div>{{/if}}
 
   <form action="/decks/{{deck._id}}/cards" method="GET" class="card-search">
     <input type="text" name="q" value="{{query}}" placeholder="Search Scryfall (e.g. counterspell, t:creature c:u)" />
@@ -48,6 +49,13 @@
                     <input type="hidden" name="q" value="{{../query}}" />
                     <button type="submit" class="button">Set as commander</button>
                   </form>
+                  {{#if ../deck.commander}}
+                    <form action="/decks/{{../deck._id}}/partner" method="POST">
+                      <input type="hidden" name="scryfall_id" value="{{this.scryfallId}}" />
+                      <input type="hidden" name="q" value="{{../query}}" />
+                      <button type="submit" class="button">Set as second commander</button>
+                    </form>
+                  {{/if}}
                 {{/if}}
               </div>
             </div>
@@ -66,6 +74,15 @@
         {{#if deck.commanderImageUrl}}<img src="{{deck.commanderImageUrl}}" alt="" />{{/if}}
         Commander: <strong>{{deck.commander}}</strong>
       </p>
+      {{#if deck.partner}}
+        <div class="current-commander">
+          {{#if deck.partnerImageUrl}}<img src="{{deck.partnerImageUrl}}" alt="" />{{/if}}
+          <span>Second commander: <strong>{{deck.partner}}</strong></span>
+          <form action="/decks/{{deck._id}}/partner/remove" method="POST">
+            <button type="submit" class="button cancel-button">Remove</button>
+          </form>
+        </div>
+      {{/if}}
     {{/if}}{{/if}}
     {{#if deck.cards.length}}
       {{> decklist groups=cardGroups deckId=deck._id editable=true}}

@@ -2,13 +2,16 @@
   <p><a href="/dashboard">&larr; Back to dashboard</a></p>
   <header class="deck-hero">
     {{#if deck.commanderImageUrl}}
-      <img class="deck-hero__commander" src="{{deck.commanderImageUrl}}" alt="{{deck.commander}}" />
+      <div class="deck-hero__commanders">
+        <img class="deck-hero__commander" src="{{deck.commanderImageUrl}}" alt="{{deck.commander}}" />
+        {{#if deck.partnerImageUrl}}<img class="deck-hero__commander" src="{{deck.partnerImageUrl}}" alt="{{deck.partner}}" />{{/if}}
+      </div>
     {{/if}}
     <div class="deck-hero__info">
       <h1>{{deck.name}}</h1>
       <p class="deck-meta">
         By <a href="{{profilePath deck.owner.username}}">{{deck.owner.username}}</a> &middot;
-        {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}{{#if deck.colors.length}} &middot; {{#each deck.colors}}{{this}} {{/each}}{{/if}}
+        {{deck.format}}{{#if deck.commander}} &middot; {{deck.commander}}{{#if deck.partner}} &amp; {{deck.partner}}{{/if}}{{/if}}{{#if deck.archetype}} &middot; {{deck.archetype}}{{/if}}{{#if deck.colors.length}} &middot; {{#each deck.colors}}{{this}} {{/each}}{{/if}}
       </p>
       {{#if deck.description}}<p class="deck-hero__desc">{{deck.description}}</p>{{/if}}
       <div class="deck-hero__actions">
