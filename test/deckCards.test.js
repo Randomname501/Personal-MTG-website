@@ -57,6 +57,26 @@ const ATRAXA = {
   type_line: 'Legendary Creature — Phyrexian Angel Horror',
   image_uris: { normal: 'http://img/atraxa.jpg' },
 };
+const KODAMA = {
+  id: 'kodama-1',
+  name: 'Kodama of the East Tree',
+  mana_cost: '{4}{G}',
+  cmc: 5,
+  colors: ['G'],
+  type_line: 'Legendary Creature — Spirit',
+  oracle_text: 'Reach\nPartner (You can have two commanders if both have partner.)',
+  image_uris: { normal: 'http://img/kodama.jpg' },
+};
+const KEDISS = {
+  id: 'kediss-1',
+  name: 'Kediss, Emberclaw Familiar',
+  mana_cost: '{1}{R}',
+  cmc: 2,
+  colors: ['R'],
+  type_line: 'Legendary Creature — Elemental Lizard',
+  oracle_text: 'Partner (You can have two commanders if both have partner.)',
+  image_uris: { normal: 'http://img/kediss.jpg' },
+};
 
 let baseUrl;
 let server;
@@ -84,7 +104,7 @@ before(async () => {
       let body = '';
       req.on('data', (chunk) => { body += chunk; });
       req.on('end', () => {
-        const known = { counterspell: CARD, "atraxa, praetors' voice": ATRAXA };
+        const known = { counterspell: CARD, "atraxa, praetors' voice": ATRAXA, 'kodama of the east tree': KODAMA, 'kediss, emberclaw familiar': KEDISS };
         const ids = JSON.parse(body).identifiers;
         res.end(JSON.stringify({
           data: ids.map((i) => known[i.name.toLowerCase()]).filter(Boolean),
@@ -96,12 +116,16 @@ before(async () => {
     if (u.pathname === '/cards/named') {
       const fuzzy = u.searchParams.get('fuzzy');
       if (fuzzy === 'atraxa') return res.end(JSON.stringify(ATRAXA));
+      if (/^kodama/i.test(fuzzy)) return res.end(JSON.stringify(KODAMA));
+      if (/^kediss/i.test(fuzzy)) return res.end(JSON.stringify(KEDISS));
       if (fuzzy === 'hang') return; // never respond
       if (fuzzy === 'explode') { res.statusCode = 500; return res.end(JSON.stringify({ object: 'error' })); }
       res.statusCode = 404;
       return res.end(JSON.stringify({ object: 'error' }));
     }
     if (u.pathname === '/cards/atraxa-1') return res.end(JSON.stringify(ATRAXA));
+    if (u.pathname === '/cards/kodama-1') return res.end(JSON.stringify(KODAMA));
+    if (u.pathname === '/cards/kediss-1') return res.end(JSON.stringify(KEDISS));
     if (u.pathname === '/cards/abc-123') return res.end(JSON.stringify(CARD));
     res.statusCode = 404;
     res.end(JSON.stringify({ object: 'error' }));
@@ -566,6 +590,267 @@ test('importing a decklist keeps notes on cards that are still in the list', asy
   const updated = await Deck.findOne({ name: 'TessNotes' });
   assert.equal(updated.cards[0].quantity, 2);
   assert.equal(updated.cards[0].note, 'Keep me');
+});
+
+// --- Two commanders ---
+let pairUsers = 0;
+const pairUser = async () => {
+  const client = makeClient();
+  await client.request('POST', '/register', { username_input: `Pair${++pairUsers}`, password_input: 'hunter2hunter' });
+  return client;
+};
+// A new Commander deck; `fields` go straight onto the create form.
+const pairDeck = async (client, name, fields = {}) => {
+  await client.request('POST', '/decks', { name, format: 'Commander', ...fields });
+  return Deck.findOne({ name });
+};
+const KODAMA_KEDISS = 'Commander\n1 Kodama of the East Tree\n1 Kediss, Emberclaw Familiar\n\nDeck\n1 Counterspell';
+const ILLEGAL = /can&#x27;t be commanders together/;
+
+test('the new deck form takes a legal pair and stores both real names and images', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'FormPair', { commander: 'kodama', partner: 'kediss' });
+  assert.equal(deck.commander, 'Kodama of the East Tree');
+  assert.equal(deck.commanderImageUrl, 'http://img/kodama.jpg');
+  assert.equal(deck.partner, 'Kediss, Emberclaw Familiar');
+  assert.equal(deck.partnerImageUrl, 'http://img/kediss.jpg');
+});
+
+test('the new deck form refuses an illegal pair and keeps what was typed', async () => {
+  const user = await pairUser();
+  const res = await user.request('POST', '/decks', {
+    name: 'FormIllegal', format: 'Commander', commander: 'atraxa', partner: 'kediss', colors: ['R', 'G'], archetype: 'Stompy',
+  });
+  assert.equal(res.status, 400);
+  assert.match(res.text, ILLEGAL);
+  assert.match(res.text, /name="partner"[^>]*value="kediss"/);
+  assert.match(res.text, /value="Stompy"/);
+  assert.match(res.text, /value="R" checked/);
+  assert.match(res.text, /value="G" checked/);
+  assert.doesNotMatch(res.text, /value="U" checked/);
+  assert.equal(await Deck.findOne({ name: 'FormIllegal' }), null);
+});
+
+test('the new deck form refuses a pair it cannot check', async () => {
+  const user = await pairUser();
+  for (const [name, fields] of [
+    ['Misspelled', { commander: 'kodama', partner: 'nomatchxyz' }],
+    ['ScryfallDown', { commander: 'kodama', partner: 'explode' }],
+    ['NoFirst', { partner: 'kediss' }],
+  ]) {
+    const res = await user.request('POST', '/decks', { name, format: 'Commander', ...fields });
+    assert.equal(res.status, 400, name);
+    assert.equal(await Deck.findOne({ name }), null, name);
+  }
+});
+
+test('a second commander on a non-Commander deck is ignored', async () => {
+  const user = await pairUser();
+  await user.request('POST', '/decks', { name: 'ModernPair', format: 'Modern', partner: 'kediss' });
+  assert.equal((await Deck.findOne({ name: 'ModernPair' })).partner, undefined);
+});
+
+test('Manage Cards can add a legal second commander, even over a typed first name', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ManagePair', { commander: 'kodama' }); // stored as typed
+  const search = await user.request('GET', `/decks/${deck._id}/cards?q=counterspell`);
+  assert.match(search.text, new RegExp(`action="/decks/${deck._id}/partner"`));
+
+  const res = await user.request('POST', `/decks/${deck._id}/partner`, { scryfall_id: 'kediss-1', q: 'x y' });
+  assert.equal(res.status, 302);
+  assert.equal(res.location, `/decks/${deck._id}/cards?q=x%20y`);
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, 'Kodama of the East Tree');
+  assert.equal(updated.partner, 'Kediss, Emberclaw Familiar');
+  assert.equal(updated.partnerImageUrl, 'http://img/kediss.jpg');
+  assert.equal(updated.cards.length, 0);
+
+  const page = await user.request('GET', `/decks/${deck._id}/cards`);
+  assert.match(page.text, /Kediss, Emberclaw Familiar/);
+  assert.match(page.text, new RegExp(`action="/decks/${deck._id}/partner/remove"`));
+});
+
+test('Manage Cards refuses an illegal second commander and keeps the search', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ManageIllegal', { commander: 'kodama' });
+  const res = await user.request('POST', `/decks/${deck._id}/partner`, { scryfall_id: 'atraxa-1', q: 'counterspell' });
+  assert.equal(res.status, 400);
+  assert.match(res.text, ILLEGAL);
+  assert.match(res.text, /Counterspell/); // search results still on the page
+  assert.equal((await Deck.findById(deck._id)).partner, undefined);
+});
+
+test('a commander cannot be its own second commander', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ManageTwin', { commander: 'kodama' });
+  const res = await user.request('POST', `/decks/${deck._id}/partner`, { scryfall_id: 'kodama-1' });
+  assert.equal(res.status, 400);
+  assert.equal((await Deck.findById(deck._id)).partner, undefined);
+});
+
+test('a second commander needs a first, a Commander deck, and the owner', async () => {
+  const user = await pairUser();
+  const noFirst = await pairDeck(user, 'NoFirstYet');
+  const res = await user.request('POST', `/decks/${noFirst._id}/partner`, { scryfall_id: 'kediss-1' });
+  assert.equal(res.status, 302);
+  assert.equal((await Deck.findById(noFirst._id)).partner, undefined);
+
+  await user.request('POST', '/decks', { name: 'ModernNoPair', format: 'Modern', commander: 'kodama' });
+  const modern = await Deck.findOne({ name: 'ModernNoPair' });
+  await user.request('POST', `/decks/${modern._id}/partner`, { scryfall_id: 'kediss-1' });
+  assert.equal((await Deck.findById(modern._id)).partner, undefined);
+
+  const stranger = await pairUser();
+  const owned = await pairDeck(user, 'OwnedPair', { commander: 'kodama', partner: 'kediss' });
+  assert.equal((await stranger.request('POST', `/decks/${owned._id}/partner`, { scryfall_id: 'kodama-1' })).status, 404);
+  assert.equal((await stranger.request('POST', `/decks/${owned._id}/partner/remove`)).status, 404);
+  assert.equal((await Deck.findById(owned._id)).partner, 'Kediss, Emberclaw Familiar');
+});
+
+test('removing the second commander leaves the first', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'RemovePair', { commander: 'kodama', partner: 'kediss' });
+  const res = await user.request('POST', `/decks/${deck._id}/partner/remove`);
+  assert.equal(res.status, 302);
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, 'Kodama of the East Tree');
+  assert.equal(updated.partner, undefined);
+  assert.equal(updated.partnerImageUrl, '');
+});
+
+test('adding a second commander fills in art the first commander was missing', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'MissingArt', { commander: 'kodama' });
+  await Deck.updateOne({ _id: deck._id }, { commanderImageUrl: '' }); // Scryfall was down at creation
+  await user.request('POST', `/decks/${deck._id}/partner`, { scryfall_id: 'kediss-1' });
+  assert.equal((await Deck.findById(deck._id)).commanderImageUrl, 'http://img/kodama.jpg');
+});
+
+test('Set as commander re-checks an existing second commander', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'SwapPair', { commander: 'kodama', partner: 'kediss' });
+  const res = await user.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'atraxa-1' });
+  assert.equal(res.status, 400);
+  assert.equal((await Deck.findById(deck._id)).commander, 'Kodama of the East Tree');
+});
+
+test('Set as commander is refused when the second commander cannot be checked', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'SwapDown', { commander: 'kodama', partner: 'kediss' });
+  await Deck.updateOne({ _id: deck._id }, { partner: 'explode' }); // the lookup for this name fails
+  const res = await user.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'kediss-1' });
+  assert.equal(res.status, 400);
+  assert.equal((await Deck.findById(deck._id)).commander, 'Kodama of the East Tree');
+});
+
+test('importing Kodama and Kediss keeps both commanders and counts both', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ImportPair');
+  const res = await user.request('POST', `/decks/${deck._id}/import`, { decklist: KODAMA_KEDISS });
+  assert.match(res.text, /Kodama of the East Tree and Kediss, Emberclaw Familiar as commanders/);
+
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, 'Kodama of the East Tree');
+  assert.equal(updated.commanderImageUrl, 'http://img/kodama.jpg');
+  assert.equal(updated.partner, 'Kediss, Emberclaw Familiar');
+  assert.equal(updated.partnerImageUrl, 'http://img/kediss.jpg');
+  assert.deepEqual(updated.cards.map((c) => c.name), ['Counterspell']);
+
+  const detail = await user.request('GET', `/decks/${deck._id}`);
+  assert.match(detail.text, /Cards \(3\)/);
+  assert.match(detail.text, /<h3>Commanders <span>\(2\)<\/span><\/h3>/);
+  assert.match(detail.text, /src="http:\/\/img\/kodama\.jpg" alt="Kodama of the East Tree"/);
+  assert.match(detail.text, /src="http:\/\/img\/kediss\.jpg" alt="Kediss, Emberclaw Familiar"/);
+  assert.match(detail.text, /Kodama of the East Tree &amp; Kediss, Emberclaw Familiar/);
+
+  const dashboard = await user.request('GET', '/dashboard');
+  assert.match(dashboard.text, /src="http:\/\/img\/kediss\.jpg"/);
+});
+
+test('an import with an illegal pair saves nothing and keeps the pasted text', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ImportIllegal');
+  await user.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+  const decklist = "Commander\n1 Atraxa, Praetors' Voice\n1 Kediss, Emberclaw Familiar\n\nDeck\n3 Counterspell";
+  const res = await user.request('POST', `/decks/${deck._id}/import`, { decklist });
+  assert.match(res.text, /No cards were imported/);
+  assert.match(res.text, ILLEGAL);
+  assert.match(res.text, /3 Counterspell<\/textarea>/);
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, undefined);
+  assert.equal(updated.partner, undefined);
+  assert.equal(updated.cards[0].quantity, 1);
+});
+
+test('an import is refused when a commander in the pair is not found', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ImportUnknown');
+  const res = await user.request('POST', `/decks/${deck._id}/import`, {
+    decklist: 'Commander\n1 Kodama of the East Tree\n1 Made Up Card\n\nDeck\n1 Counterspell',
+  });
+  assert.match(res.text, /No cards were imported/);
+  assert.match(res.text, /<li>Made Up Card<\/li>/);
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, undefined);
+  assert.equal(updated.cards.length, 0);
+});
+
+test('an import with more than two commanders is refused', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ImportThree');
+  const res = await user.request('POST', `/decks/${deck._id}/import`, {
+    decklist: "Commander\n1 Kodama of the East Tree\n1 Kediss, Emberclaw Familiar\n1 Atraxa, Praetors' Voice",
+  });
+  assert.match(res.text, /No cards were imported/);
+  assert.equal((await Deck.findById(deck._id)).commander, undefined);
+});
+
+test('importing a single commander clears the old second commander', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ImportSingle', { commander: 'kodama', partner: 'kediss' });
+  await user.request('POST', `/decks/${deck._id}/import`, { decklist: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Counterspell" });
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, "Atraxa, Praetors' Voice");
+  assert.equal(updated.partner, undefined);
+  assert.equal(updated.partnerImageUrl, '');
+});
+
+test('importing with no commander section leaves both commanders alone', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ImportNoCmdr', { commander: 'kodama', partner: 'kediss' });
+  await user.request('POST', `/decks/${deck._id}/import`, { decklist: '1 Counterspell' });
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, 'Kodama of the East Tree');
+  assert.equal(updated.partner, 'Kediss, Emberclaw Familiar');
+});
+
+test('on a non-Commander deck, commander lines are ordinary cards', async () => {
+  const user = await pairUser();
+  await user.request('POST', '/decks', { name: 'ModernImport', format: 'Modern' });
+  const deck = await Deck.findOne({ name: 'ModernImport' });
+  await user.request('POST', `/decks/${deck._id}/import`, { decklist: KODAMA_KEDISS });
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.partner, undefined);
+  assert.deepEqual(updated.cards.map((c) => c.name).sort(), ['Counterspell', 'Kediss, Emberclaw Familiar', 'Kodama of the East Tree']);
+});
+
+test('re-importing keeps a note on the second commander', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ImportNote', { commander: 'kodama', partner: 'kediss' });
+  await user.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'kediss-1' });
+  await user.request('POST', `/decks/${deck._id}/cards/kediss-1/note`, { note: 'Pairs with big attackers' });
+  await user.request('POST', `/decks/${deck._id}/import`, { decklist: KODAMA_KEDISS });
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.cards.find((c) => c.scryfallId === 'kediss-1').note, 'Pairs with big attackers');
+});
+
+test('a second commander also held as a card is counted and listed once', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'PairDouble', { commander: 'kodama', partner: 'kediss' });
+  await user.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'kediss-1' });
+  const res = await user.request('GET', `/decks/${deck._id}`);
+  assert.match(res.text, /Cards \(2\)/);
+  assert.equal(res.text.match(/cardlist__name"[^>]*>Kediss/g).length, 1);
 });
 
 export { makeClient, aliceDeck };

@@ -3,27 +3,49 @@ import assert from 'node:assert/strict';
 import { parseDecklist } from '../lib/decklist.js';
 
 test('parses Moxfield-style lines, stripping set codes and collector numbers', () => {
-  const { cards, commander } = parseDecklist('1 Sol Ring (CMR) 263\n4 Lightning Bolt\n2x Island (UNF) 236 *F*');
+  const { cards, commanders } = parseDecklist('1 Sol Ring (CMR) 263\n4 Lightning Bolt\n2x Island (UNF) 236 *F*');
   assert.deepEqual(cards, [
     { name: 'Sol Ring', quantity: 1 },
     { name: 'Lightning Bolt', quantity: 4 },
     { name: 'Island', quantity: 2 },
   ]);
-  assert.equal(commander, null);
+  assert.deepEqual(commanders, []);
 });
 
 test('takes the commander from a Commander section header', () => {
-  const { cards, commander } = parseDecklist('Commander\n1 Atraxa, Praetors\' Voice\n\nDeck\n1 Sol Ring');
-  assert.equal(commander, "Atraxa, Praetors' Voice");
+  const { cards, commanders } = parseDecklist('Commander\n1 Atraxa, Praetors\' Voice\n\nDeck\n1 Sol Ring');
+  assert.deepEqual(commanders, ["Atraxa, Praetors' Voice"]);
   assert.deepEqual(cards, [{ name: 'Sol Ring', quantity: 1 }]);
 });
 
 test('takes the commander from an Archidekt [Commander] tag and drops other tags', () => {
-  const { cards, commander } = parseDecklist(
+  const { cards, commanders } = parseDecklist(
     '1x Krenko, Mob Boss (ddt) 52 [Commander{top}]\n1x Sol Ring (cmr) 263 [Ramp] ^Have,#37d67a^',
   );
-  assert.equal(commander, 'Krenko, Mob Boss');
+  assert.deepEqual(commanders, ['Krenko, Mob Boss']);
   assert.deepEqual(cards, [{ name: 'Sol Ring', quantity: 1 }]);
+});
+
+test('keeps both commanders from a Commander section, out of the card list', () => {
+  const { cards, commanders } = parseDecklist('Commander\n1 Kodama of the East Tree\n1 Kediss, Emberclaw Familiar\n\nDeck\n1 Sol Ring');
+  assert.deepEqual(commanders, ['Kodama of the East Tree', 'Kediss, Emberclaw Familiar']);
+  assert.deepEqual(cards, [{ name: 'Sol Ring', quantity: 1 }]);
+});
+
+test('keeps both commanders from Archidekt [Commander] tags', () => {
+  const { commanders } = parseDecklist('1x Kodama of the East Tree (cmr) 1 [Commander{top}]\n1x Kediss, Emberclaw Familiar (cmr) 2 [Commander{top}]');
+  assert.deepEqual(commanders, ['Kodama of the East Tree', 'Kediss, Emberclaw Familiar']);
+});
+
+test('a category that only mentions commanders is not a commander', () => {
+  const { cards, commanders } = parseDecklist('1x Sol Ring (cmr) 263 [Commander Synergy]\nCommander Synergy\n1 Opt\nCommander (1)\n1 Krenko, Mob Boss');
+  assert.deepEqual(commanders, ['Krenko, Mob Boss']);
+  assert.deepEqual(cards.map((c) => c.name), ['Sol Ring', 'Opt']);
+});
+
+test('finds the Commander tag among several categories', () => {
+  const { commanders } = parseDecklist('1x Krenko, Mob Boss (ddt) 52 [Goblins,Commander{top}]');
+  assert.deepEqual(commanders, ['Krenko, Mob Boss']);
 });
 
 test('skips sideboard and maybeboard sections, comments and blank lines', () => {
@@ -37,6 +59,6 @@ test('merges repeated names case-insensitively and ignores unparseable lines', (
 });
 
 test('handles empty and non-string input', () => {
-  assert.deepEqual(parseDecklist(''), { cards: [], commander: null });
-  assert.deepEqual(parseDecklist(undefined), { cards: [], commander: null });
+  assert.deepEqual(parseDecklist(''), { cards: [], commanders: [] });
+  assert.deepEqual(parseDecklist(undefined), { cards: [], commanders: [] });
 });

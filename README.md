@@ -26,7 +26,7 @@ The app is structured as a full-stack Express application with server-rendered H
 
 ### Deck management
 
-- create decks with a name, format, colors, commander, archetype, and notes
+- create decks with a name, format, colors, one or two commanders, archetype, and notes
 - browse decks by format and ownership
 - track other users' decks without owning them
 - maintain a card list embedded in each deck record
@@ -130,7 +130,7 @@ The app is structured as a full-stack Express application with server-rendered H
 ### Data model summary
 
 - User: username, passwordHash, trackedDecks
-- Deck: name, format, colors, commander, archetype, description, cards
+- Deck: name, format, colors, commander, partner (second commander), archetype, description, cards
 - GameRecord: user, deck, opponents, result, timestamps
 
 ## Prerequisites

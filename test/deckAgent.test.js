@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { withDeckFilters, runDeckAgent } from '../lib/deckAgent.js';
+import { withDeckFilters, runDeckAgent, deckSnapshot } from '../lib/deckAgent.js';
 
 // --- A fake Claude: replays scripted responses and records every request. ---
 const fakeClient = (script) => {
@@ -138,6 +138,24 @@ test('a card in the deck under another printing is dropped', async () => {
   ]);
   const out = await runDeckAgent({ client, deck: DECK, messages: [], question: 'q', search: fakeSearch([otherPrinting]) });
   assert.deepEqual(out.recommendations, []);
+});
+
+test('the second commander is not recommended back', async () => {
+  const KEDISS = card('kediss-1', 'Kediss, Emberclaw Familiar');
+  const client = fakeClient([
+    searchCall('t1', 't:elf'),
+    recommendCall('t2', [{ scryfallId: 'kediss-1', reason: 'is a commander' }, { scryfallId: 'elves-1', reason: 'fine' }]),
+    endTurn('ok'),
+  ]);
+  const out = await runDeckAgent({
+    client, deck: { ...DECK, partner: 'Kediss, Emberclaw Familiar' }, messages: [], question: 'q', search: fakeSearch([ELVES, KEDISS]),
+  });
+  assert.deepEqual(out.recommendations.map((r) => r.scryfallId), ['elves-1']);
+});
+
+test('the deck snapshot names both commanders', () => {
+  const text = deckSnapshot({ format: 'Commander', commander: 'Kodama of the East Tree', partner: 'Kediss, Emberclaw Familiar' });
+  assert.match(text, /Commander: Kodama of the East Tree & Kediss, Emberclaw Familiar/);
 });
 
 test('cards already in the deck or the commander are dropped', async () => {
