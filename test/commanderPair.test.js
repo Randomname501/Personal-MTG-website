@@ -21,6 +21,8 @@ const HERMIT = card('Cloakwood Hermit', 'Commander creatures you own have an abi
 const ROSE = card('Rose Tyler', "Doctor's companion (You can have two commanders if the other is the Doctor.)");
 const AMY = card('Amy Pond', "Partner with Rory Williams (When this creature enters, target player may put Rory into their hand from their library, then shuffle.)\nDoctor's companion (You can have two commanders if the other is the Doctor.)");
 const RORY = card('Rory Williams', "Partner with Amy Pond (When this creature enters, target player may put Amy into their hand from their library, then shuffle.)\nDoctor's companion (You can have two commanders if the other is the Doctor.)");
+const RETRIEVER = card('Chakram Retriever', 'Partner with Chakram Slinger (When this creature enters, target player may put Chakram Slinger into their hand from their library, then shuffle.)', 'Creature — Elemental Dog');
+const SLINGER = card('Chakram Slinger', 'Partner with Chakram Retriever (When this creature enters, target player may put Chakram Retriever into their hand from their library, then shuffle.)', 'Creature — Human Warrior');
 const TENTH = card('The Tenth Doctor', 'Allons-y!', 'Legendary Creature — Time Lord Doctor');
 const TIME_LORD = card('A Time Lord', '', 'Legendary Creature — Time Lord Rogue');
 const DOCTOR_WIZARD = card('A Doctor Wizard', '', 'Legendary Creature — Time Lord Doctor Wizard');
@@ -31,6 +33,8 @@ const cases = [
   ['Partner with naming each other', PIR, TOOTHY, true],
   ['Partner with and a plain Partner card', PIR, KODAMA, false],
   ['Partner with and a card naming someone else', PIR, card('Other', 'Partner with Somebody Else (reminder)'), false],
+  ['nonlegendary cards naming each other', RETRIEVER, SLINGER, false],
+  ['a nonlegendary Partner card and a legendary one', card('Plain', 'Partner', 'Creature — Human'), KODAMA, false],
   ['the same named Partner variant', ABBY, ELLIE, true],
   ['Friends forever', BJORNA, CECILY, true],
   ['different named Partner variants', ABBY, BJORNA, false],

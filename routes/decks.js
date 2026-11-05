@@ -150,6 +150,16 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
   }
 });
 
+// Make the next save fail if a second tab changed the commanders since this deck
+// was read. Call before changing them: only changed fields are written, so a pair
+// checked against stale data could otherwise end up saved half and half.
+const COMMANDERS_CHANGED = 'The commanders on this deck just changed. Check them and try again.';
+const guardCommanders = (deck) => {
+  deck.$where = { commander: deck.commander ?? null, partner: deck.partner ?? null };
+};
+// Mongoose reports a failed guard as VersionError when the card list changed too.
+const isCommandersChanged = (err) => ['DocumentNotFoundError', 'VersionError'].includes(err.name);
+
 // The card manager page; `extra` carries search results or an import outcome.
 const renderManager = (res, deck, extra = {}) => {
   const plain = deck.toObject();
@@ -368,13 +378,20 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
     for (const c of byId.values()) c.note = notes.get(c.name.toLowerCase()) ?? '';
     deck.cards = [...byId.values()];
     if (commanderCard) {
+      guardCommanders(deck);
       deck.commander = commanderCard.name;
       deck.commanderImageUrl = commanderCard.imageUrl;
       // The pasted list replaces the old pair, so a single commander clears the second.
       deck.partner = partnerCard?.name;
       deck.partnerImageUrl = partnerCard?.imageUrl ?? '';
     }
-    await deck.save();
+    try {
+      await deck.save();
+    } catch (err) {
+      if (!isCommandersChanged(err)) throw err;
+      const current = await findOwnedDeck(deck._id, req.currentUser._id);
+      return renderManager(res.status(409), current, { importResult: { message: `No cards were imported — ${COMMANDERS_CHANGED}`, notFound: [] }, importText: decklist });
+    }
 
     const total = deck.cards.reduce((sum, c) => sum + c.quantity, 0);
     const commanderNote = partnerCard
@@ -401,20 +418,27 @@ const setCommanderSlot = (slot, otherSlot) => async (req, res, next) => {
 
     // Re-fetch for the canonical name and art; never trust client-posted card fields.
     const card = await getCardById(scryfallId);
+    guardCommanders(deck);
+    const refuse = async (status, target, commanderError) => {
+      const results = q ? await searchCards(q).catch(() => []) : [];
+      return renderManager(res.status(status), target, { commanderError, query: q, searched: Boolean(q), results });
+    };
     if (deck[otherSlot]) {
       // Fuzzy, because a commander from the new deck form is stored as typed.
       const otherCard = await getCardByName(deck[otherSlot]).catch(() => null);
       const refusal = pairRefusal(card, otherCard);
-      if (refusal) {
-        const results = q ? await searchCards(q).catch(() => []) : [];
-        return renderManager(res.status(400), deck, { commanderError: refusal, query: q, searched: Boolean(q), results });
-      }
+      if (refusal) return await refuse(400, deck, refusal);
       deck[otherSlot] = otherCard.name;
       deck[`${otherSlot}ImageUrl`] = otherCard.imageUrl;
     }
     deck[slot] = card.name;
     deck[`${slot}ImageUrl`] = card.imageUrl;
-    await deck.save();
+    try {
+      await deck.save();
+    } catch (err) {
+      if (!isCommandersChanged(err)) throw err;
+      return await refuse(409, await findOwnedDeck(deck._id, req.currentUser._id), COMMANDERS_CHANGED);
+    }
 
     res.redirect(back);
   } catch (err) {

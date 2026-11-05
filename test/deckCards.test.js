@@ -77,6 +77,24 @@ const KEDISS = {
   oracle_text: 'Partner (You can have two commanders if both have partner.)',
   image_uris: { normal: 'http://img/kediss.jpg' },
 };
+const AKIRI = {
+  id: 'akiri-1',
+  name: 'Akiri, Line-Slinger',
+  mana_cost: '{R}{W}',
+  cmc: 2,
+  colors: ['R', 'W'],
+  type_line: 'Legendary Creature — Kor Soldier Ally',
+  oracle_text: 'Partner (You can have two commanders if both have partner.)',
+  image_uris: { normal: 'http://img/akiri.jpg' },
+};
+
+// Runs once, in the middle of the next Scryfall lookup: a second tab saving meanwhile.
+let duringLookup = null;
+const runDuringLookup = async () => {
+  const run = duringLookup;
+  duringLookup = null;
+  await run?.();
+};
 
 let baseUrl;
 let server;
@@ -103,8 +121,9 @@ before(async () => {
     if (u.pathname === '/cards/collection' && req.method === 'POST') {
       let body = '';
       req.on('data', (chunk) => { body += chunk; });
-      req.on('end', () => {
-        const known = { counterspell: CARD, "atraxa, praetors' voice": ATRAXA, 'kodama of the east tree': KODAMA, 'kediss, emberclaw familiar': KEDISS };
+      req.on('end', async () => {
+        await runDuringLookup();
+        const known = { counterspell: CARD, "atraxa, praetors' voice": ATRAXA, 'kodama of the east tree': KODAMA, 'kediss, emberclaw familiar': KEDISS, 'akiri, line-slinger': AKIRI };
         const ids = JSON.parse(body).identifiers;
         res.end(JSON.stringify({
           data: ids.map((i) => known[i.name.toLowerCase()]).filter(Boolean),
@@ -112,6 +131,9 @@ before(async () => {
         }));
       });
       return;
+    }
+    if (u.pathname === '/cards/named' && duringLookup) {
+      return runDuringLookup().then(() => res.end(JSON.stringify(KEDISS)));
     }
     if (u.pathname === '/cards/named') {
       const fuzzy = u.searchParams.get('fuzzy');
@@ -126,6 +148,7 @@ before(async () => {
     if (u.pathname === '/cards/atraxa-1') return res.end(JSON.stringify(ATRAXA));
     if (u.pathname === '/cards/kodama-1') return res.end(JSON.stringify(KODAMA));
     if (u.pathname === '/cards/kediss-1') return res.end(JSON.stringify(KEDISS));
+    if (u.pathname === '/cards/akiri-1') return res.end(JSON.stringify(AKIRI));
     if (u.pathname === '/cards/abc-123') return res.end(JSON.stringify(CARD));
     res.statusCode = 404;
     res.end(JSON.stringify({ object: 'error' }));
@@ -741,6 +764,32 @@ test('Set as commander is refused when the second commander cannot be checked', 
   const res = await user.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'kediss-1' });
   assert.equal(res.status, 400);
   assert.equal((await Deck.findById(deck._id)).commander, 'Kodama of the East Tree');
+});
+
+test('a commander change is refused if the other slot changed during the check', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'RaceSlots', { commander: 'kodama', partner: 'kediss' });
+  duringLookup = () => Deck.updateOne({ _id: deck._id }, { partner: 'Akiri, Line-Slinger' });
+  const res = await user.request('POST', `/decks/${deck._id}/commander`, { scryfall_id: 'akiri-1' });
+  assert.equal(res.status, 409);
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, 'Kodama of the East Tree'); // not a second Akiri
+  assert.equal(updated.partner, 'Akiri, Line-Slinger');
+  assert.match(res.text, /Akiri, Line-Slinger/); // the page shows the deck as it now is
+});
+
+test('an import is refused if the commanders changed while it was checking', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'RaceImport', { commander: 'kodama', partner: 'kediss' });
+  duringLookup = () => Deck.updateOne({ _id: deck._id }, { commander: "Atraxa, Praetors' Voice" });
+  const decklist = 'Commander\n1 Kodama of the East Tree\n1 Akiri, Line-Slinger\n\nDeck\n1 Counterspell';
+  const res = await user.request('POST', `/decks/${deck._id}/import`, { decklist });
+  assert.equal(res.status, 409);
+  assert.match(res.text, /1 Counterspell<\/textarea>/);
+  const updated = await Deck.findById(deck._id);
+  assert.equal(updated.commander, "Atraxa, Praetors' Voice");
+  assert.equal(updated.partner, 'Kediss, Emberclaw Familiar');
+  assert.equal(updated.cards.length, 0);
 });
 
 test('importing Kodama and Kediss keeps both commanders and counts both', async () => {
