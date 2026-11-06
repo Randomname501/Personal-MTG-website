@@ -34,7 +34,7 @@ const makeClient = () => {
     const res = await fetch(baseUrl + path, { method, headers, body, redirect: 'manual' });
     store(res);
     const text = await res.text();
-    return { status: res.status, location: res.headers.get('location'), text };
+    return { status: res.status, location: res.headers.get('location'), headers: res.headers, text };
   };
   return { request };
 };
@@ -345,6 +345,68 @@ test('filtering by another user\'s deck id is ignored (not leaked/filtered to it
   assert.match(res.text, /Burn/);
   assert.match(res.text, /Tron/);
   assert.match(res.text, /Goblins/);
+});
+
+// --- CSV export ---
+const newPlayer = async (username) => {
+  const client = makeClient();
+  await client.request('POST', '/register', { username_input: username, password_input: 'hunter2hunter' });
+  await client.request('POST', '/decks', { name: `${username}Deck`, format: 'Modern' });
+  return { client, deck: await Deck.findOne({ name: `${username}Deck` }) };
+};
+
+test('exporting downloads the player\'s own games as CSV', async () => {
+  const { client, deck } = await newPlayer('CsvErin');
+  const other = await newPlayer('CsvFinn');
+  await logGame(client, deck._id, solo('CsvBurn', 'Ana'), 'win');
+  await logGame(other.client, other.deck._id, solo('CsvTron'), 'loss');
+
+  const { status, headers, text } = await client.request('GET', '/game-records/export');
+  assert.equal(status, 200);
+  assert.match(headers.get('content-type'), /^text\/csv/);
+  assert.match(headers.get('content-disposition'), /^attachment; filename="game-history\.csv"/);
+  assert.match(text, /"CsvErinDeck","Ana \(CsvBurn\)","win"/);
+  assert.ok(!text.includes('CsvTron'));
+});
+
+test('exporting needs a login', async () => {
+  const res = await makeClient().request('GET', '/game-records/export');
+  assert.equal(res.status, 302);
+});
+
+test('the export follows the page filters', async () => {
+  const { client, deck } = await newPlayer('CsvGwen');
+  await logGame(client, deck._id, solo('CsvWon'), 'win');
+  await logGame(client, deck._id, solo('CsvLost'), 'loss');
+
+  const page = await client.request('GET', '/game-records?result=win');
+  assert.ok(page.text.includes('href="/game-records/export?deck=&amp;result=win"'));
+
+  const { text } = await client.request('GET', '/game-records/export?deck=&result=win');
+  assert.ok(text.includes('CsvWon'));
+  assert.ok(!text.includes('CsvLost'));
+});
+
+test('a legacy game exports its old opponent deck', async () => {
+  const { client, deck } = await newPlayer('CsvHana');
+  await mongoose.connection.collection('gamerecords').insertOne({
+    user: deck.owner,
+    deck: deck._id,
+    opponentDeck: 'CsvLegacy',
+    result: 'draw',
+    createdAt: new Date(),
+  });
+  const { text } = await client.request('GET', '/game-records/export');
+  assert.match(text, /"CsvLegacy","draw"/);
+});
+
+test('an empty history offers no export, and the URL gives just the header', async () => {
+  const { client } = await newPlayer('CsvIvo');
+  const page = await client.request('GET', '/game-records');
+  assert.ok(!page.text.includes('/game-records/export'));
+  const { status, text } = await client.request('GET', '/game-records/export');
+  assert.equal(status, 200);
+  assert.equal(text, '"Date","Deck","Opponents","Result"\r\n');
 });
 
 export { makeClient, logGame, opponentFields };
