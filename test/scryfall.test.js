@@ -22,11 +22,10 @@ const DFC_CARD = {
   id: 'dfc-1',
   name: 'Delver of Secrets // Insectile Aberration',
   cmc: 1,
-  colors: ['U'],
   type_line: 'Creature — Human Wizard // Creature — Insect',
   card_faces: [
-    { mana_cost: '{U}', oracle_text: 'Transform at upkeep.', image_uris: { normal: 'http://img/delver.jpg' } },
-    { mana_cost: '', oracle_text: 'Flying', image_uris: { normal: 'http://img/aberration.jpg' } },
+    { mana_cost: '{U}', colors: ['U'], oracle_text: 'Transform at upkeep.', image_uris: { normal: 'http://img/delver.jpg' } },
+    { mana_cost: '', colors: ['U'], oracle_text: 'Flying', image_uris: { normal: 'http://img/aberration.jpg' } },
   ],
 };
 
@@ -114,9 +113,10 @@ test('searchCards caps results at 20', async () => {
   assert.equal(cards.length, 20);
 });
 
-test('getCardById pulls mana cost and image from the front face of a DFC', async () => {
+test('getCardById pulls mana cost, colors and image from the front face of a DFC', async () => {
   const card = await getCardById('dfc-1');
   assert.equal(card.manaCost, '{U}');
+  assert.deepEqual(card.colors, ['U']);
   assert.equal(card.imageUrl, 'http://img/delver.jpg');
   assert.equal(card.cmc, 1);
   assert.equal(card.oracleText, 'Transform at upkeep.\n//\nFlying');

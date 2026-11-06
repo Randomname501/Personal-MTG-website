@@ -156,6 +156,25 @@ test('a tag page lists a card once when a deck holds two printings', async () =>
   assert.equal(text.split('Sol Ring').length - 1, 1);
 });
 
+test('a tag page lists a Commander deck led by the tagged card, in that format only', async () => {
+  const user = await newUser();
+  const deck = await newDeck(user);
+  const tag = await newTag(user, 'Leaders');
+  await postTags(user, `/decks/${deck._id}/cards/sol-1/tags`, [tag]);
+
+  const led = await newDeck(user, []);
+  const partnered = await newDeck(user, []);
+  const modern = await newDeck(user, []);
+  await Deck.updateOne({ _id: led._id }, { format: 'Commander', commander: 'Sol Ring' });
+  await Deck.updateOne({ _id: partnered._id }, { format: 'Commander', commander: 'Opt', partner: 'Sol Ring' });
+  await Deck.updateOne({ _id: modern._id }, { commander: 'Sol Ring' });
+
+  const { text } = await user('GET', `/tags/${tag._id}`);
+  assert.ok(text.includes(`${led.name}</a>: Sol Ring`));
+  assert.ok(text.includes(`${partnered.name}</a>: Sol Ring`));
+  assert.ok(!text.includes(`${modern.name}<`));
+});
+
 test('the deck and card pages link to their tags for the owner only', async () => {
   const owner = await newUser();
   const other = await newUser();
