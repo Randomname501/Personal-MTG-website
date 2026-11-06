@@ -327,7 +327,9 @@ router.post('/decks/:id/cards/:scryfallId/move', requireAuth, async (req, res, n
       const existing = deck[to].find(isThisCard);
       if (existing) {
         existing.quantity += card.quantity;
-        existing.note ||= card.note;
+        // Two different notes are both kept, up to the limit.
+        const notes = new Set([existing.note, card.note].filter(Boolean));
+        existing.note = [...notes].join('\n\n').slice(0, NOTE_MAX);
       } else {
         deck[to].push(card);
       }

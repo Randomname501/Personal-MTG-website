@@ -134,6 +134,24 @@ test('moving a card onto a board that already has it adds the quantities', async
   assert.deepEqual(await boards(deck), { cards: [['Counterspell', 2]], considering: [] });
 });
 
+test('merging two copies with different notes keeps both, within the limit', async () => {
+  const user = await newUser();
+  const deck = await newDeck(user);
+  const note = (text) => user('POST', `/decks/${deck._id}/cards/abc-123/note`, { note: text });
+  const roundTrip = async (first, second) => {
+    await addTo(user, deck);
+    await note(first);
+    await user('POST', `/decks/${deck._id}/cards/abc-123/move`, { to: 'considering' });
+    await addTo(user, deck);
+    await note(second);
+    await user('POST', `/decks/${deck._id}/cards/abc-123/move`, { to: 'cards' });
+    return (await Deck.findById(deck._id)).cards[0].note;
+  };
+
+  assert.equal(await roundTrip('Old note', 'New note'), 'New note\n\nOld note');
+  assert.equal((await roundTrip('x'.repeat(2000), 'y'.repeat(2000))).length, 2000);
+});
+
 test('moving a card that is not on the other board changes nothing', async () => {
   const user = await newUser();
   const deck = await newDeck(user);
