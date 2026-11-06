@@ -230,6 +230,7 @@ The app exposes these major routes:
 ### Game records
 
 - `/game-records` - list recent game history
+- `/game-records/export` - download game history as CSV
 - `/game-records/:id/edit` - update a match
 - `/game-records/:id/delete` - confirm deletion
 - `/game-records/:id` via method overrides - delete or update record flows

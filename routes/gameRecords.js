@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { Deck, GameRecord, Playgroup, GAME_RESULTS, MAX_OPPONENTS, opponentList } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { listMemberGroups } from '../lib/playgroups.js';
+import { gamesToCsv } from '../lib/gameCsv.js';
 
 const router = express.Router();
 
@@ -83,23 +84,36 @@ const findOwnedRecord = async (id, userId) => {
 // The user's decks, name-sorted and lean — for the filter bar and the edit form's select.
 const listOwnedDecks = (userId) => Deck.find({ owner: userId }).sort({ name: 1 }).lean();
 
-// Match history: the user's games, newest-first, with optional deck/result filters.
+// The user's games, newest-first, with optional deck/result filters from the query.
+const loadHistory = async (userId, query) => {
+  const decks = await listOwnedDecks(userId);
+
+  const filter = { user: userId };
+  const deckIds = new Set(decks.map((d) => d._id.toString()));
+  if (query.deck && deckIds.has(query.deck)) filter.deck = query.deck;
+  if (GAME_RESULTS.includes(query.result)) filter.result = query.result;
+
+  const records = await GameRecord.find(filter)
+    .sort({ createdAt: -1, _id: -1 })
+    .populate('deck', 'name')
+    .lean();
+  // Normalize here so consumers never have to know about the legacy field.
+  return { decks, filter, games: records.map((g) => ({ ...g, opponents: opponentList(g) })) };
+};
+
+// Match history as a CSV download, narrowed by the same filters as the page.
+router.get('/game-records/export', requireAuth, async (req, res, next) => {
+  try {
+    const { games } = await loadHistory(req.currentUser._id, req.query);
+    res.attachment('game-history.csv').send(gamesToCsv(games));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/game-records', requireAuth, async (req, res, next) => {
   try {
-    const userId = req.currentUser._id;
-    const decks = await listOwnedDecks(userId);
-
-    const filter = { user: userId };
-    const deckIds = new Set(decks.map((d) => d._id.toString()));
-    if (req.query.deck && deckIds.has(req.query.deck)) filter.deck = req.query.deck;
-    if (GAME_RESULTS.includes(req.query.result)) filter.result = req.query.result;
-
-    const records = await GameRecord.find(filter)
-      .sort({ createdAt: -1, _id: -1 })
-      .populate('deck', 'name')
-      .lean();
-    // Normalize here so the view never has to know about the legacy field.
-    const games = records.map((g) => ({ ...g, opponents: opponentList(g) }));
+    const { decks, filter, games } = await loadHistory(req.currentUser._id, req.query);
 
     res.render('gameHistory', {
       title: 'Match History',
