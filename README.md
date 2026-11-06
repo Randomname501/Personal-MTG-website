@@ -224,6 +224,7 @@ The app exposes these major routes:
 - `/decks/new` - create a deck
 - `/decks/:id` - deck detail and analytics
 - `/decks/:id/cards` - manage cards in a deck
+- `/decks/:id/export` - download a deck as a text decklist
 - `/decks/:id/track` and `/decks/:id/untrack` - follow/unfollow decks
 
 ### Game records

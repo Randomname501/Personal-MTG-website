@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
 import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
-import { parseDecklist } from '../lib/decklist.js';
+import { formatDecklist, parseDecklist } from '../lib/decklist.js';
 import { pairRefusal } from '../lib/commanderPair.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { runDeckAgent } from '../lib/deckAgent.js';
@@ -115,6 +115,31 @@ router.post('/decks', requireAuth, async (req, res, next) => {
   }
 });
 
+// Commanders live outside deck.cards; they join the list (and the count) only
+// on Commander-format decks.
+const commandersAndCards = (deck) => {
+  const commanders = deck.format !== 'Commander' ? [] : [
+    { name: deck.commander, imageUrl: deck.commanderImageUrl },
+    { name: deck.partner, imageUrl: deck.partnerImageUrl },
+  ].filter((c) => c.name);
+  const cards = commanders.reduce((list, c) => withoutCommander(list, c.name), deck.cards || []);
+  return { commanders, cards };
+};
+
+const decklistText = ({ commanders, cards }) => formatDecklist({ commanders: commanders.map((c) => c.name), cards });
+
+router.get('/decks/:id/export', requireAuth, async (req, res, next) => {
+  try {
+    const deck = mongoose.Types.ObjectId.isValid(req.params.id) ? await Deck.findById(req.params.id).lean() : null;
+    if (!deck || !canSeeDeck(deck, req.currentUser)) {
+      return res.status(404).render('404', { title: 'Not Found' });
+    }
+    res.attachment(`${deck.name}.txt`).send(decklistText(commandersAndCards(deck)));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/decks/:id', requireAuth, async (req, res, next) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -127,13 +152,7 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const stats = await getDeckStats(deck._id);
     const isOwner = req.currentUser._id.toString() === deck.owner._id.toString();
     const isTracked = (req.currentUser.trackedDecks || []).some((t) => t.toString() === deck._id.toString());
-    // Commanders live outside deck.cards; they join the list (and the count) only
-    // on Commander-format decks.
-    const commanders = deck.format !== 'Commander' ? [] : [
-      { name: deck.commander, imageUrl: deck.commanderImageUrl },
-      { name: deck.partner, imageUrl: deck.partnerImageUrl },
-    ].filter((c) => c.name);
-    const cards = commanders.reduce((list, c) => withoutCommander(list, c.name), deck.cards || []);
+    const { commanders, cards } = commandersAndCards(deck);
     const cardCount = cards.reduce((sum, c) => sum + c.quantity, 0) + commanders.length;
     const insights = getCardInsights(cards);
     const groupMode = ['type', 'cmc'].includes(req.query.group) ? req.query.group : 'type';
@@ -144,7 +163,8 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
       commanders: commanders.map((c) => ({ ...asCard(c), ...c })),
     });
     const assistantEnabled = isOwner && Boolean(process.env.ANTHROPIC_API_KEY);
-    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode, assistantEnabled });
+    const exportText = decklistText({ commanders, cards });
+    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode, assistantEnabled, exportText });
   } catch (err) {
     next(err);
   }
