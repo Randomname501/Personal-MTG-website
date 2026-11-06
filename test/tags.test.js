@@ -147,6 +147,15 @@ test('a card tag survives its card being replaced by another printing', async ()
   assert.match((await user('GET', `/tags/${tag._id}`)).text, /Sol Ring/);
 });
 
+test('a tag page lists a card once when a deck holds two printings', async () => {
+  const user = await newUser();
+  const deck = await newDeck(user, [CARD, { ...CARD, scryfallId: 'sol-2' }]);
+  const tag = await newTag(user, 'Two Printings');
+  await postTags(user, `/decks/${deck._id}/cards/sol-1/tags`, [tag]);
+  const { text } = await user('GET', `/tags/${tag._id}`);
+  assert.equal(text.split('Sol Ring').length - 1, 1);
+});
+
 test('the deck and card pages link to their tags for the owner only', async () => {
   const owner = await newUser();
   const other = await newUser();

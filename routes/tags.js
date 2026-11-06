@@ -64,7 +64,7 @@ router.get('/tags/:id', requireAuth, async (req, res, next) => {
     const cardDecks = decksWithCards.map((d) => ({
       _id: d._id,
       name: d.name,
-      cards: d.cards.map((c) => c.name).filter((name) => tag.cards.includes(name)),
+      cards: [...new Set(d.cards.map((c) => c.name).filter((name) => tag.cards.includes(name)))],
     }));
     res.render('tag', { title: tag.name, tag: tag.toObject(), decks, cardDecks });
   } catch (err) {
