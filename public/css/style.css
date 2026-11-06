@@ -1335,7 +1335,9 @@ main:not(.landing) h2 {
 .card-note__image { width: 16rem; max-width: 45%; border-radius: 12px; box-shadow: var(--shadow-card); }
 .card-note__form { flex: 1; min-width: 0; }
 .card-note__form textarea { width: 100%; margin: 0.4rem 0 0.8rem; }
+.card-note__form form + form { margin-top: 1.2rem; }
 .cardlist__note { font-size: 0.8rem; }
+.cardlist__proxy { margin-left: 0.4rem; font-size: 0.75rem; font-weight: 700; color: var(--mana-u); text-decoration: none; }
 @media (max-width: 520px) {
   .card-note { flex-direction: column; }
   .card-note__image { max-width: 70%; }

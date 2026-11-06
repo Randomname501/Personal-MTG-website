@@ -308,6 +308,7 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
     const card = deck[field].find((c) => c.scryfallId === req.params.scryfallId);
     if (card) {
       card.quantity -= 1;
+      card.proxies = Math.min(card.proxies, card.quantity);
       if (card.quantity <= 0) {
         deck[field] = deck[field].filter((c) => c.scryfallId !== req.params.scryfallId);
       }
@@ -348,12 +349,32 @@ router.post('/decks/:id/cards/:scryfallId/move', requireAuth, async (req, res, n
   }
 });
 
+router.post('/decks/:id/cards/:scryfallId/proxies', requireAuth, async (req, res, next) => {
+  try {
+    const found = await findOwnedCard(req);
+    if (!found) return res.status(404).render('404', { title: 'Not Found' });
+    const { deck, card } = found;
+
+    const proxies = Number(req.body.proxies);
+    if (!Number.isInteger(proxies) || proxies < 0 || proxies > card.quantity) {
+      return renderNote(res.status(400), deck, card.toObject(), {
+        proxyError: `Proxies must be a whole number between 0 and ${card.quantity}.`,
+      });
+    }
+    card.proxies = proxies;
+    await deck.save();
+    res.redirect(`/decks/${deck._id}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Replace a deck's cards with a pasted Moxfield/Archidekt text export. Names are
 // resolved through Scryfall; unmatched lines are reported back, and a paste that
 // matches nothing leaves the deck as it was.
 const MAX_IMPORT_NAMES = 250;
 
-// Owner-only page for a private note on one card in a deck.
+// Owner-only page for a private note and the proxy count on one card in a deck.
 const NOTE_MAX = 2000;
 
 const findOwnedCard = async (req) => {
@@ -429,16 +450,20 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
     if (refusal) return fail(`No cards were imported — ${refusal}`, notFound);
     if (byId.size === 0 && !commanderCard) return fail('No cards were imported — none of those names matched a card.', notFound);
 
-    // Carry notes over to cards that survive the import (matched by name, since
-    // the pasted list may name a different printing).
-    const notes = new Map(deck.cards.filter((c) => c.note).map((c) => [c.name.toLowerCase(), c.note]));
-    // Commanders stay out of the card list, unless their card carries a note to keep.
+    // Carry notes and proxy counts over to cards that survive the import (matched by
+    // name, since the pasted list may name a different printing).
+    const kept = new Map(deck.cards.filter((c) => c.note || c.proxies).map((c) => [c.name.toLowerCase(), c]));
+    // Commanders stay out of the card list, unless their card carries something to keep.
     for (const card of [commanderCard, partnerCard]) {
-      if (card && notes.has(card.name.toLowerCase()) && !byId.has(card.scryfallId)) {
+      if (card && kept.has(card.name.toLowerCase()) && !byId.has(card.scryfallId)) {
         byId.set(card.scryfallId, { ...card, quantity: 1 });
       }
     }
-    for (const c of byId.values()) c.note = notes.get(c.name.toLowerCase()) ?? '';
+    for (const c of byId.values()) {
+      const old = kept.get(c.name.toLowerCase());
+      c.note = old?.note ?? '';
+      c.proxies = Math.min(old?.proxies ?? 0, c.quantity);
+    }
     deck.cards = [...byId.values()];
     if (commanderCard) {
       guardCommanders(deck);
