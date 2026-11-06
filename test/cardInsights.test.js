@@ -147,7 +147,7 @@ test('groupCards puts a named commander first and omits it when there is no name
 
 test('groupCards falls back to type mode and treats non-arrays as empty', () => {
   const cards = [card({ name: 'Bolt', typeLine: 'Instant', cmc: 1 })];
-  assert.deepEqual(groupCards(cards, { mode: 'color' }).map((x) => x.label), ['Instants']);
+  assert.deepEqual(groupCards(cards, { mode: 'bogus' }).map((x) => x.label), ['Instants']);
   assert.deepEqual(groupCards(undefined), []);
 });
 

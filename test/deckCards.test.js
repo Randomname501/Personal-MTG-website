@@ -378,13 +378,13 @@ test('deck detail groups by mana value with ?group=cmc and falls back to type ot
   const deck = await aliceDeck(); // Counterspell, cmc 2
   const cmc = await alice.request('GET', `/decks/${deck._id}?group=cmc`);
   assert.match(cmc.text, /<h3>2 <span>\(2\)<\/span><\/h3>/);
-  assert.match(cmc.text, /href="\?group=cmc"[^>]*aria-current="true"/);
+  assert.match(cmc.text, /href="\?group=cmc&amp;dir=asc"[^>]*aria-current="true"/);
 
-  for (const qs of ['?group=color', '?group=cmc&group=type', '']) {
+  for (const qs of ['?group=bogus', '?group=cmc&group=type', '']) {
     const res = await alice.request('GET', `/decks/${deck._id}${qs}`);
     assert.equal(res.status, 200, qs);
     assert.match(res.text, /<h3>Instants <span>\(2\)<\/span><\/h3>/, qs);
-    assert.match(res.text, /href="\?group=type"[^>]*aria-current="true"/, qs);
+    assert.match(res.text, /href="\?group=type&amp;dir=asc"[^>]*aria-current="true"/, qs);
   }
 });
 
