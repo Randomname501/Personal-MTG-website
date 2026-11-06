@@ -86,6 +86,8 @@ const deckSchema = new mongoose.Schema(
     },
     // Card list, built from Scryfall via the deck's Manage Cards page.
     cards: [cardSchema],
+    // Cards the owner might add; never part of the deck's list, counts, or stats.
+    considering: [cardSchema],
     visibility: { type: String, enum: DECK_VISIBILITY, default: 'public' },
   },
   { timestamps: true }
