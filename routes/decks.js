@@ -4,7 +4,7 @@ import { Deck, DECK_FORMATS, DECK_VISIBILITY, MTG_COLORS, User } from '../models
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
 import { GROUP_MODES, getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
-import { DECK_SORTS, deckSort } from '../lib/deckSort.js';
+import { DECK_COLLATION, DECK_SORTS, deckSort } from '../lib/deckSort.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
 import { formatDecklist, parseDecklist } from '../lib/decklist.js';
 import { pairRefusal } from '../lib/commanderPair.js';
@@ -44,7 +44,7 @@ router.get('/decks', requireAuth, async (req, res, next) => {
     const order = deckSort(req.query.sort);
     const decks = await Deck.find({ $and: [filter, visibleDeckFilter(req.currentUser)] })
       .sort(order.sort)
-      .collation({ locale: 'en' })
+      .collation(DECK_COLLATION)
       .populate('owner', 'username')
       .lean();
 

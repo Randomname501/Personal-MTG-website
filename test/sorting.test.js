@@ -113,6 +113,12 @@ for (const path of ['/decks', '/dashboard']) {
   });
 }
 
+test('names differing only by case stay in the order they were created', async () => {
+  for (const name of ['Delta', 'delta']) await request('POST', '/decks', { name, format: 'Modern' });
+  const { text } = await request('GET', '/decks?sort=name-asc');
+  assert.deepEqual(orderIn(text, ['>Delta<', '>delta<']), ['>Delta<', '>delta<']);
+});
+
 test('browse keeps the format filter alongside the sort', async () => {
   const { text } = await request('GET', '/decks?format=Commander&sort=name-asc');
   assert.ok(!text.includes('>Alpha<'));
