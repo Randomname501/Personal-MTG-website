@@ -20,6 +20,9 @@ const findOwnedDeck = async (id, userId) => {
   return Deck.findOne({ _id: id, owner: userId });
 };
 
+// The deck field a form's board value names; anything else means the main deck.
+const boardField = (board) => (board === 'considering' ? 'considering' : 'cards');
+
 // `colors` are the boxes to re-tick when a rejected form comes back.
 const renderDeckForm = (res, { colors = [], ...extra } = {}) =>
   res.render('deckForm', {
@@ -162,9 +165,10 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
       mode: groupMode,
       commanders: commanders.map((c) => ({ ...asCard(c), ...c })),
     });
+    const consideringGroups = isOwner ? groupCards(deck.considering) : [];
     const assistantEnabled = isOwner && Boolean(process.env.ANTHROPIC_API_KEY);
     const exportText = decklistText({ commanders, cards });
-    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode, assistantEnabled, exportText });
+    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, consideringGroups, groupMode, assistantEnabled, exportText });
   } catch (err) {
     next(err);
   }
@@ -190,6 +194,7 @@ const renderManager = (res, deck, extra = {}) => {
     searched: false,
     results: [],
     cardGroups: groupCards(plain.cards),
+    consideringGroups: groupCards(plain.considering),
     isCommanderDeck: deck.format === 'Commander',
     ...extra,
   });
@@ -237,9 +242,10 @@ router.post('/decks/:id/cards', requireAuth, async (req, res, next) => {
     // Re-fetch the card server-side for an authoritative snapshot; never trust
     // client-posted card fields.
     const card = await getCardById(scryfallId);
-    const existing = deck.cards.find((c) => c.scryfallId === card.scryfallId);
+    const board = deck[boardField(req.body.board)];
+    const existing = board.find((c) => c.scryfallId === card.scryfallId);
     if (existing) existing.quantity += 1;
-    else deck.cards.push({ ...card, quantity: 1 });
+    else board.push({ ...card, quantity: 1 });
     await deck.save();
 
     res.redirect(back);
@@ -291,11 +297,39 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
     const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
     if (!deck) return res.status(404).render('404', { title: 'Not Found' });
 
-    const card = deck.cards.find((c) => c.scryfallId === req.params.scryfallId);
+    const field = boardField(req.body.board);
+    const card = deck[field].find((c) => c.scryfallId === req.params.scryfallId);
     if (card) {
       card.quantity -= 1;
       if (card.quantity <= 0) {
-        deck.cards = deck.cards.filter((c) => c.scryfallId !== req.params.scryfallId);
+        deck[field] = deck[field].filter((c) => c.scryfallId !== req.params.scryfallId);
+      }
+      await deck.save();
+    }
+    res.redirect(`/decks/${deck._id}/cards`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Move every copy of a card to the board named by `to`, keeping its note.
+router.post('/decks/:id/cards/:scryfallId/move', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+
+    const to = boardField(req.body.to);
+    const from = to === 'cards' ? 'considering' : 'cards';
+    const isThisCard = (c) => c.scryfallId === req.params.scryfallId;
+    const card = deck[from].find(isThisCard)?.toObject();
+    if (card) {
+      deck[from] = deck[from].filter((c) => !isThisCard(c));
+      const existing = deck[to].find(isThisCard);
+      if (existing) {
+        existing.quantity += card.quantity;
+        existing.note ||= card.note;
+      } else {
+        deck[to].push(card);
       }
       await deck.save();
     }

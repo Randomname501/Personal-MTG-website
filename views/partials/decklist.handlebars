@@ -13,7 +13,12 @@
             <span class="cardlist__meta">{{this.manaCost}}</span>
             {{#if this.imageUrl}}<img class="cardlist__preview" src="{{this.imageUrl}}" alt="" loading="lazy" />{{/if}}
             {{#if ../../editable}}{{#if this.scryfallId}}
+              <form action="/decks/{{../../deckId}}/cards/{{this.scryfallId}}/move" method="POST">
+                <input type="hidden" name="to" value="{{#if ../../considering}}cards{{else}}considering{{/if}}" />
+                <button type="submit" class="button">{{#if ../../considering}}Move to deck{{else}}Consider{{/if}}</button>
+              </form>
               <form action="/decks/{{../../deckId}}/cards/{{this.scryfallId}}/remove" method="POST">
+                {{#if ../../considering}}<input type="hidden" name="board" value="considering" />{{/if}}
                 <button type="submit" class="button cancel-button">Remove</button>
               </form>
             {{/if}}{{/if}}
