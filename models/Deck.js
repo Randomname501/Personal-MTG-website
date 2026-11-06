@@ -30,6 +30,8 @@ const cardSchema = new mongoose.Schema(
     quantity: { type: Number, default: 1, min: 1 },
     // The owner's private note on this card in this deck.
     note: { type: String, default: '', maxlength: 2000 },
+    // How many of `quantity` are proxies rather than real cards.
+    proxies: { type: Number, default: 0, min: 0 },
   },
   { _id: false }
 );

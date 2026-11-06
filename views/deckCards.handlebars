@@ -91,7 +91,7 @@
       {{/if}}
     {{/if}}{{/if}}
     {{#if deck.cards.length}}
-      {{> decklist groups=cardGroups deckId=deck._id editable=true}}
+      {{> decklist groups=cardGroups deckId=deck._id editable=true showProxies=true}}
     {{else}}
       <p>No cards yet. Search above to add some.</p>
     {{/if}}

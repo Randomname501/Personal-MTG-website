@@ -10,6 +10,7 @@
               <a class="cardlist__name" href="/decks/{{../../deckId}}/cards/{{this.scryfallId}}/note">{{this.name}}</a>{{#if this.note}} <span class="cardlist__note" title="Has a note">📝</span><span class="cardlist__note-preview">{{this.note}}</span>{{/if}}
             {{else}}<span class="cardlist__name">{{this.name}}</span>{{/if}}
             {{else}}<span class="cardlist__name">{{this.name}}</span>{{/if}}
+            {{#if ../../showProxies}}{{#if this.proxies}}<abbr class="cardlist__proxy" title="Proxies: {{this.proxies}}">{{this.proxies}}P</abbr>{{/if}}{{/if}}
             <span class="cardlist__meta">{{this.manaCost}}</span>
             {{#if this.imageUrl}}<img class="cardlist__preview" src="{{this.imageUrl}}" alt="" loading="lazy" />{{/if}}
             {{#if ../../editable}}{{#if this.scryfallId}}

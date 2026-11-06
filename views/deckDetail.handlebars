@@ -73,7 +73,7 @@
       </p>
     </div>
     {{#if cardGroups.length}}
-      {{> decklist groups=cardGroups deckId=deck._id linkNotes=isOwner}}
+      {{> decklist groups=cardGroups deckId=deck._id linkNotes=isOwner showProxies=isOwner}}
     {{/if}}
     {{#unless deck.cards.length}}
       <p>No cards in this deck yet.{{#if isOwner}} <a href="/decks/{{deck._id}}/cards">Add some</a>.{{/if}}</p>
