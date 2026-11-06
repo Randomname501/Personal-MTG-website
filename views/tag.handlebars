@@ -1,0 +1,32 @@
+<main class="profile-page">
+  <p><a href="/tags">&larr; All tags</a></p>
+  <header class="profile-head">
+    <h1>{{tag.name}}</h1>
+  </header>
+
+  <section>
+    <h2>Decks</h2>
+    {{#if decks.length}}
+      <ul class="profile-list">
+        {{#each decks}}
+          <li><a href="/decks/{{this._id}}">{{this.name}}</a> &middot; {{this.format}}</li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <p>No decks have this tag.</p>
+    {{/if}}
+  </section>
+
+  <section>
+    <h2>Cards</h2>
+    {{#if cardDecks.length}}
+      <ul class="profile-list">
+        {{#each cardDecks}}
+          <li><a href="/decks/{{this._id}}">{{this.name}}</a>: {{#each this.cards}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}</li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <p>None of your decks hold a card with this tag.</p>
+    {{/if}}
+  </section>
+</main>

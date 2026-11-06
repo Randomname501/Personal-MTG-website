@@ -235,6 +235,12 @@ The app exposes these major routes:
 - `/game-records/:id/delete` - confirm deletion
 - `/game-records/:id` via method overrides - delete or update record flows
 
+### Tags
+
+- `/tags` - create, rename and delete your tags
+- `/tags/:id` - see the decks and cards with a tag
+- `/decks/:id/tags` and `/decks/:id/cards/:scryfallId/tags` - assign tags
+
 ### Leaderboards
 
 - `/leaderboard` - player leaderboard
