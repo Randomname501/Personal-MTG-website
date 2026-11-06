@@ -335,6 +335,7 @@ router.post('/decks/:id/cards/:scryfallId/move', requireAuth, async (req, res, n
       const existing = deck[to].find(isThisCard);
       if (existing) {
         existing.quantity += card.quantity;
+        existing.proxies += card.proxies;
         // Two different notes are both kept, up to the limit.
         const notes = new Set([existing.note, card.note].filter(Boolean));
         existing.note = [...notes].join('\n\n').slice(0, NOTE_MAX);
@@ -452,7 +453,13 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
 
     // Carry notes and proxy counts over to cards that survive the import (matched by
     // name, since the pasted list may name a different printing).
-    const kept = new Map(deck.cards.filter((c) => c.note || c.proxies).map((c) => [c.name.toLowerCase(), c]));
+    const kept = new Map();
+    for (const { name, note, proxies } of deck.cards) {
+      if (!note && !proxies) continue;
+      const key = name.toLowerCase();
+      const old = kept.get(key); // printings of one card share a name
+      kept.set(key, { note: note || old?.note, proxies: proxies + (old?.proxies ?? 0) });
+    }
     // Commanders stay out of the card list, unless their card carries something to keep.
     for (const card of [commanderCard, partnerCard]) {
       if (card && kept.has(card.name.toLowerCase()) && !byId.has(card.scryfallId)) {

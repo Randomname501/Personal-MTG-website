@@ -162,6 +162,32 @@ test('adding a copy keeps the proxy count', async () => {
   assert.equal(card.proxies, 1);
 });
 
+test('an import adds up proxies across printings and keeps their note', async () => {
+  const user = await newUser();
+  const deck = await newDeck(user, 0);
+  const printing = (scryfallId, fields) => ({ scryfallId, name: 'Counterspell', quantity: 1, ...fields });
+  await Deck.updateOne({ _id: deck._id }, {
+    cards: [printing('old-1', { proxies: 1, note: 'Keep me' }), printing('old-2', { proxies: 1 })],
+  });
+  await user('POST', `/decks/${deck._id}/import`, { decklist: '2 Counterspell' });
+  const card = await storedCard(deck);
+  assert.equal(card.proxies, 2);
+  assert.equal(card.note, 'Keep me');
+});
+
+test('moving a card onto a board that has it adds up the proxies', async () => {
+  const user = await newUser();
+  const deck = await newDeck(user, 2);
+  await setProxies(user, deck, '1');
+  await user('POST', `/decks/${deck._id}/cards/abc-123/move`, { to: 'considering' });
+  await user('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+  await setProxies(user, deck, '1');
+  await user('POST', `/decks/${deck._id}/cards/abc-123/move`, { to: 'cards' });
+  const card = await storedCard(deck);
+  assert.equal(card.quantity, 3);
+  assert.equal(card.proxies, 2);
+});
+
 test('an import keeps proxy counts, capped at the new quantity', async () => {
   const user = await newUser();
   const deck = await newDeck(user);
