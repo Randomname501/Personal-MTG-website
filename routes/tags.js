@@ -50,6 +50,12 @@ router.post('/tags', requireAuth, async (req, res, next) => {
   }
 });
 
+// A deck's card names, with its commanders where the format uses them.
+const cardNames = (deck) => [
+  ...(deck.format === 'Commander' ? [deck.commander, deck.partner] : []),
+  ...(deck.cards || []).map((c) => c.name),
+];
+
 // Everything carrying one tag: the decks, and each deck's cards.
 router.get('/tags/:id', requireAuth, async (req, res, next) => {
   try {
@@ -59,12 +65,19 @@ router.get('/tags/:id', requireAuth, async (req, res, next) => {
 
     const [decks, decksWithCards] = await Promise.all([
       Deck.find({ _id: { $in: tag.decks }, owner }).sort({ name: 1 }).collation(BY_NAME).select('name format').lean(),
-      Deck.find({ owner, 'cards.name': { $in: tag.cards } }).sort({ name: 1 }).collation(BY_NAME).select('name cards.name').lean(),
+      Deck.find({
+        owner,
+        $or: [
+          { 'cards.name': { $in: tag.cards } },
+          { format: 'Commander', commander: { $in: tag.cards } },
+          { format: 'Commander', partner: { $in: tag.cards } },
+        ],
+      }).sort({ name: 1 }).collation(BY_NAME).select('name format commander partner cards.name').lean(),
     ]);
     const cardDecks = decksWithCards.map((d) => ({
       _id: d._id,
       name: d.name,
-      cards: [...new Set(d.cards.map((c) => c.name).filter((name) => tag.cards.includes(name)))],
+      cards: [...new Set(cardNames(d).filter((name) => tag.cards.includes(name)))],
     }));
     res.render('tag', { title: tag.name, tag: tag.toObject(), decks, cardDecks });
   } catch (err) {
