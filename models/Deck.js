@@ -30,6 +30,8 @@ const cardSchema = new mongoose.Schema(
     quantity: { type: Number, default: 1, min: 1 },
     // The owner's private note on this card in this deck.
     note: { type: String, default: '', maxlength: 2000 },
+    // How many of `quantity` are proxies rather than real cards.
+    proxies: { type: Number, default: 0, min: 0 },
   },
   { _id: false }
 );
@@ -86,6 +88,8 @@ const deckSchema = new mongoose.Schema(
     },
     // Card list, built from Scryfall via the deck's Manage Cards page.
     cards: [cardSchema],
+    // Cards the owner might add; never part of the deck's list, counts, or stats.
+    considering: [cardSchema],
     visibility: { type: String, enum: DECK_VISIBILITY, default: 'public' },
   },
   { timestamps: true }

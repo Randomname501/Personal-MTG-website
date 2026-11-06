@@ -4,15 +4,17 @@ import { requireAuth } from '../middleware/auth.js';
 import { getUserSummary } from '../lib/stats.js';
 import { canSeeDeck } from '../lib/visibility.js';
 import { listMemberGroups } from '../lib/playgroups.js';
+import { DECK_COLLATION, DECK_SORTS, deckSort } from '../lib/deckSort.js';
 
 const router = express.Router();
 
 router.get('/dashboard', requireAuth, async (req, res, next) => {
   try {
+    const order = deckSort(req.query.sort);
     // .lean() so Handlebars can read the fields (its prototype guard blocks
     // Mongoose document getters, rendering them blank otherwise).
     const [decks, userWithTracked, summary, requesters, playgroups] = await Promise.all([
-      Deck.find({ owner: req.currentUser._id }).sort({ createdAt: -1 }).lean(),
+      Deck.find({ owner: req.currentUser._id }).sort(order.sort).collation(DECK_COLLATION).lean(),
       User.findById(req.currentUser._id).populate('trackedDecks').lean(),
       getUserSummary(req.currentUser._id),
       User.find({ _id: { $in: req.currentUser.friendRequests ?? [] } }).select('username').sort({ username: 1 }).lean(),
@@ -23,6 +25,8 @@ router.get('/dashboard', requireAuth, async (req, res, next) => {
       title: 'Dashboard',
       user: req.currentUser,
       decks,
+      deckSorts: DECK_SORTS,
+      sort: order.value,
       trackedDecks: (userWithTracked?.trackedDecks ?? []).filter((d) => canSeeDeck(d, req.currentUser)),
       summary,
       requesters,

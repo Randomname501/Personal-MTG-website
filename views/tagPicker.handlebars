@@ -1,0 +1,17 @@
+<main class="profile-page">
+  <p><a href="{{target.back}}">&larr; Back to {{target.name}}</a></p>
+  <header class="profile-head">
+    <h1>Tags: {{target.name}}</h1>
+    {{#if target.isCard}}<p>A tag on a card applies in all of your decks.</p>{{/if}}
+  </header>
+
+  {{#if tags.length}}
+    <form action="{{target.path}}" method="POST">
+      {{#each tags}}
+        <p><label><input type="checkbox" name="tags" value="{{this._id}}"{{#if this.checked}} checked{{/if}} /> {{this.name}}</label></p>
+      {{/each}}
+      <button type="submit" class="submit-button">Save tags</button>
+    </form>
+  {{/if}}
+  <p>{{#unless tags.length}}You haven't made any tags yet. {{/unless}}<a href="/tags">Manage your tags</a></p>
+</main>

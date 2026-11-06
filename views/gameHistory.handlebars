@@ -26,6 +26,7 @@
   </form>
 
   {{#if games.length}}
+    <p><a href="/game-records/export?deck={{filter.deck}}&amp;result={{filter.result}}" class="button">Export CSV</a></p>
     <table class="history-table">
       <thead>
         <tr><th>Date</th><th>Deck</th><th>Opponents</th><th>Result</th><th>Actions</th></tr>

@@ -34,6 +34,12 @@
       <h2>My Decks</h2>
       <a href="/decks/new" class="button">+ New Deck</a>
     </div>
+    {{#if decks.length}}
+      <form action="/dashboard" method="GET" class="filter-bar">
+        {{> deckSortField}}
+        <button type="submit" class="submit-button">Apply</button>
+      </form>
+    {{/if}}
     <div class="deck-grid">
       {{#each decks}}
         <div class="deck-card">

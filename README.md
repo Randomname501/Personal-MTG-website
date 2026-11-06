@@ -223,15 +223,23 @@ The app exposes these major routes:
 - `/decks` - browse decks
 - `/decks/new` - create a deck
 - `/decks/:id` - deck detail and analytics
-- `/decks/:id/cards` - manage cards in a deck
+- `/decks/:id/cards` - manage cards in a deck and its Considering list
+- `/decks/:id/export` - download a deck as a text decklist
 - `/decks/:id/track` and `/decks/:id/untrack` - follow/unfollow decks
 
 ### Game records
 
 - `/game-records` - list recent game history
+- `/game-records/export` - download game history as CSV
 - `/game-records/:id/edit` - update a match
 - `/game-records/:id/delete` - confirm deletion
 - `/game-records/:id` via method overrides - delete or update record flows
+
+### Tags
+
+- `/tags` - create, rename and delete your tags
+- `/tags/:id` - see the decks and cards with a tag
+- `/decks/:id/tags` and `/decks/:id/cards/:scryfallId/tags` - assign tags
 
 ### Leaderboards
 

@@ -3,9 +3,10 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, DECK_VISIBILITY, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
-import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
+import { GROUP_MODES, getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
+import { DECK_COLLATION, DECK_SORTS, deckSort } from '../lib/deckSort.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
-import { parseDecklist } from '../lib/decklist.js';
+import { formatDecklist, parseDecklist } from '../lib/decklist.js';
 import { pairRefusal } from '../lib/commanderPair.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { runDeckAgent } from '../lib/deckAgent.js';
@@ -19,6 +20,9 @@ const findOwnedDeck = async (id, userId) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
   return Deck.findOne({ _id: id, owner: userId });
 };
+
+// The deck field a form's board value names; anything else means the main deck.
+const boardField = (board) => (board === 'considering' ? 'considering' : 'cards');
 
 // `colors` are the boxes to re-tick when a rejected form comes back.
 const renderDeckForm = (res, { colors = [], ...extra } = {}) =>
@@ -37,8 +41,10 @@ router.get('/decks', requireAuth, async (req, res, next) => {
     const filter = {};
     if (DECK_FORMATS.includes(req.query.format)) filter.format = req.query.format;
 
+    const order = deckSort(req.query.sort);
     const decks = await Deck.find({ $and: [filter, visibleDeckFilter(req.currentUser)] })
-      .sort({ createdAt: -1 })
+      .sort(order.sort)
+      .collation(DECK_COLLATION)
       .populate('owner', 'username')
       .lean();
 
@@ -61,6 +67,8 @@ router.get('/decks', requireAuth, async (req, res, next) => {
       formats: DECK_FORMATS,
       filter: { format: filter.format ?? '' },
       hasFilter: Boolean(filter.format),
+      deckSorts: DECK_SORTS,
+      sort: order.value,
     });
   } catch (err) {
     next(err);
@@ -94,7 +102,7 @@ router.post('/decks', requireAuth, async (req, res, next) => {
       owner: req.currentUser._id,
       visibility,
       colors,
-      commander: (partnerCard ? commanderCard.name : commanderName) || undefined,
+      commander: commanderCard?.name ?? (commanderName || undefined),
       commanderImageUrl: commanderCard?.imageUrl || '',
       partner: partnerCard?.name,
       partnerImageUrl: partnerCard?.imageUrl || '',
@@ -115,6 +123,31 @@ router.post('/decks', requireAuth, async (req, res, next) => {
   }
 });
 
+// Commanders live outside deck.cards; they join the list (and the count) only
+// on Commander-format decks.
+const commandersAndCards = (deck) => {
+  const commanders = deck.format !== 'Commander' ? [] : [
+    { name: deck.commander, imageUrl: deck.commanderImageUrl },
+    { name: deck.partner, imageUrl: deck.partnerImageUrl },
+  ].filter((c) => c.name);
+  const cards = commanders.reduce((list, c) => withoutCommander(list, c.name), deck.cards || []);
+  return { commanders, cards };
+};
+
+const decklistText = ({ commanders, cards }) => formatDecklist({ commanders: commanders.map((c) => c.name), cards });
+
+router.get('/decks/:id/export', requireAuth, async (req, res, next) => {
+  try {
+    const deck = mongoose.Types.ObjectId.isValid(req.params.id) ? await Deck.findById(req.params.id).lean() : null;
+    if (!deck || !canSeeDeck(deck, req.currentUser)) {
+      return res.status(404).render('404', { title: 'Not Found' });
+    }
+    res.attachment(`${deck.name}.txt`).send(decklistText(commandersAndCards(deck)));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/decks/:id', requireAuth, async (req, res, next) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -127,24 +160,22 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const stats = await getDeckStats(deck._id);
     const isOwner = req.currentUser._id.toString() === deck.owner._id.toString();
     const isTracked = (req.currentUser.trackedDecks || []).some((t) => t.toString() === deck._id.toString());
-    // Commanders live outside deck.cards; they join the list (and the count) only
-    // on Commander-format decks.
-    const commanders = deck.format !== 'Commander' ? [] : [
-      { name: deck.commander, imageUrl: deck.commanderImageUrl },
-      { name: deck.partner, imageUrl: deck.partnerImageUrl },
-    ].filter((c) => c.name);
-    const cards = commanders.reduce((list, c) => withoutCommander(list, c.name), deck.cards || []);
+    const { commanders, cards } = commandersAndCards(deck);
     const cardCount = cards.reduce((sum, c) => sum + c.quantity, 0) + commanders.length;
     const insights = getCardInsights(cards);
-    const groupMode = ['type', 'cmc'].includes(req.query.group) ? req.query.group : 'type';
+    const groupMode = GROUP_MODES.includes(req.query.group) ? req.query.group : 'type';
+    const sortDir = req.query.dir === 'desc' ? 'desc' : 'asc';
     // A commander also stored as a card keeps that card's id and note on its row.
     const asCard = ({ name }) => (deck.cards || []).find((c) => c.name.toLowerCase() === name.toLowerCase());
     const cardGroups = groupCards(cards, {
       mode: groupMode,
+      descending: sortDir === 'desc',
       commanders: commanders.map((c) => ({ ...asCard(c), ...c })),
     });
+    const consideringGroups = isOwner ? groupCards(deck.considering) : [];
     const assistantEnabled = isOwner && Boolean(process.env.ANTHROPIC_API_KEY);
-    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, groupMode, assistantEnabled });
+    const exportText = decklistText({ commanders, cards });
+    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, consideringGroups, groupMode, sortDir, assistantEnabled, exportText });
   } catch (err) {
     next(err);
   }
@@ -170,6 +201,7 @@ const renderManager = (res, deck, extra = {}) => {
     searched: false,
     results: [],
     cardGroups: groupCards(plain.cards),
+    consideringGroups: groupCards(plain.considering),
     isCommanderDeck: deck.format === 'Commander',
     ...extra,
   });
@@ -217,9 +249,10 @@ router.post('/decks/:id/cards', requireAuth, async (req, res, next) => {
     // Re-fetch the card server-side for an authoritative snapshot; never trust
     // client-posted card fields.
     const card = await getCardById(scryfallId);
-    const existing = deck.cards.find((c) => c.scryfallId === card.scryfallId);
+    const board = deck[boardField(req.body.board)];
+    const existing = board.find((c) => c.scryfallId === card.scryfallId);
     if (existing) existing.quantity += 1;
-    else deck.cards.push({ ...card, quantity: 1 });
+    else board.push({ ...card, quantity: 1 });
     await deck.save();
 
     res.redirect(back);
@@ -271,15 +304,67 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
     const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
     if (!deck) return res.status(404).render('404', { title: 'Not Found' });
 
-    const card = deck.cards.find((c) => c.scryfallId === req.params.scryfallId);
+    const field = boardField(req.body.board);
+    const card = deck[field].find((c) => c.scryfallId === req.params.scryfallId);
     if (card) {
       card.quantity -= 1;
+      card.proxies = Math.min(card.proxies, card.quantity);
       if (card.quantity <= 0) {
-        deck.cards = deck.cards.filter((c) => c.scryfallId !== req.params.scryfallId);
+        deck[field] = deck[field].filter((c) => c.scryfallId !== req.params.scryfallId);
       }
       await deck.save();
     }
     res.redirect(`/decks/${deck._id}/cards`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Move every copy of a card to the board named by `to`, keeping its note.
+router.post('/decks/:id/cards/:scryfallId/move', requireAuth, async (req, res, next) => {
+  try {
+    const deck = await findOwnedDeck(req.params.id, req.currentUser._id);
+    if (!deck) return res.status(404).render('404', { title: 'Not Found' });
+
+    const to = boardField(req.body.to);
+    const from = to === 'cards' ? 'considering' : 'cards';
+    const isThisCard = (c) => c.scryfallId === req.params.scryfallId;
+    const card = deck[from].find(isThisCard)?.toObject();
+    if (card) {
+      deck[from] = deck[from].filter((c) => !isThisCard(c));
+      const existing = deck[to].find(isThisCard);
+      if (existing) {
+        existing.quantity += card.quantity;
+        existing.proxies += card.proxies;
+        // Two different notes are both kept, up to the limit.
+        const notes = new Set([existing.note, card.note].filter(Boolean));
+        existing.note = [...notes].join('\n\n').slice(0, NOTE_MAX);
+      } else {
+        deck[to].push(card);
+      }
+      await deck.save();
+    }
+    res.redirect(`/decks/${deck._id}/cards`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/decks/:id/cards/:scryfallId/proxies', requireAuth, async (req, res, next) => {
+  try {
+    const found = await findOwnedCard(req);
+    if (!found) return res.status(404).render('404', { title: 'Not Found' });
+    const { deck, card } = found;
+
+    const proxies = Number(req.body.proxies);
+    if (!Number.isInteger(proxies) || proxies < 0 || proxies > card.quantity) {
+      return renderNote(res.status(400), deck, card.toObject(), {
+        proxyError: `Proxies must be a whole number between 0 and ${card.quantity}.`,
+      });
+    }
+    card.proxies = proxies;
+    await deck.save();
+    res.redirect(`/decks/${deck._id}`);
   } catch (err) {
     next(err);
   }
@@ -290,7 +375,7 @@ router.post('/decks/:id/cards/:scryfallId/remove', requireAuth, async (req, res,
 // matches nothing leaves the deck as it was.
 const MAX_IMPORT_NAMES = 250;
 
-// Owner-only page for a private note on one card in a deck.
+// Owner-only page for a private note and the proxy count on one card in a deck.
 const NOTE_MAX = 2000;
 
 const findOwnedCard = async (req) => {
@@ -366,16 +451,26 @@ router.post('/decks/:id/import', requireAuth, async (req, res, next) => {
     if (refusal) return fail(`No cards were imported — ${refusal}`, notFound);
     if (byId.size === 0 && !commanderCard) return fail('No cards were imported — none of those names matched a card.', notFound);
 
-    // Carry notes over to cards that survive the import (matched by name, since
-    // the pasted list may name a different printing).
-    const notes = new Map(deck.cards.filter((c) => c.note).map((c) => [c.name.toLowerCase(), c.note]));
-    // Commanders stay out of the card list, unless their card carries a note to keep.
+    // Carry notes and proxy counts over to cards that survive the import (matched by
+    // name, since the pasted list may name a different printing).
+    const kept = new Map();
+    for (const { name, note, proxies } of deck.cards) {
+      if (!note && !proxies) continue;
+      const key = name.toLowerCase();
+      const old = kept.get(key); // printings of one card share a name
+      kept.set(key, { note: note || old?.note, proxies: proxies + (old?.proxies ?? 0) });
+    }
+    // Commanders stay out of the card list, unless their card carries something to keep.
     for (const card of [commanderCard, partnerCard]) {
-      if (card && notes.has(card.name.toLowerCase()) && !byId.has(card.scryfallId)) {
+      if (card && kept.has(card.name.toLowerCase()) && !byId.has(card.scryfallId)) {
         byId.set(card.scryfallId, { ...card, quantity: 1 });
       }
     }
-    for (const c of byId.values()) c.note = notes.get(c.name.toLowerCase()) ?? '';
+    for (const c of byId.values()) {
+      const old = kept.get(c.name.toLowerCase());
+      c.note = old?.note ?? '';
+      c.proxies = Math.min(old?.proxies ?? 0, c.quantity);
+    }
     deck.cards = [...byId.values()];
     if (commanderCard) {
       guardCommanders(deck);
