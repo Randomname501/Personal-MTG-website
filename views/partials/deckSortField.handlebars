@@ -1,0 +1,8 @@
+<div class="form-group">
+  <label for="sort">Sort by</label>
+  <select name="sort" id="sort">
+    {{#each deckSorts}}
+      <option value="{{this.value}}" {{#if (eq this.value ../sort)}}selected{{/if}}>{{this.label}}</option>
+    {{/each}}
+  </select>
+</div>

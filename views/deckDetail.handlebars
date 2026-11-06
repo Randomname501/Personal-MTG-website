@@ -61,9 +61,15 @@
   <section class="deck-cards-view">
     <div class="deck-cards-view__head">
       <h2>Cards ({{cardCount}})</h2>
-      <p class="group-toggle">Group by:
-        <a href="?group=type"{{#if (eq groupMode "type")}} aria-current="true"{{/if}}>Type</a> &middot;
-        <a href="?group=cmc"{{#if (eq groupMode "cmc")}} aria-current="true"{{/if}}>Mana value</a>
+      <p class="group-toggle">Sort by:
+        <a href="?group=type&amp;dir={{sortDir}}"{{#if (eq groupMode "type")}} aria-current="true"{{/if}}>Type</a> &middot;
+        <a href="?group=cmc&amp;dir={{sortDir}}"{{#if (eq groupMode "cmc")}} aria-current="true"{{/if}}>Mana value</a> &middot;
+        <a href="?group=color&amp;dir={{sortDir}}"{{#if (eq groupMode "color")}} aria-current="true"{{/if}}>Color</a> &middot;
+        <a href="?group=name&amp;dir={{sortDir}}"{{#if (eq groupMode "name")}} aria-current="true"{{/if}}>Name</a>
+      </p>
+      <p class="group-toggle">Order:
+        <a href="?group={{groupMode}}&amp;dir=asc"{{#if (eq sortDir "asc")}} aria-current="true"{{/if}}>Ascending</a> &middot;
+        <a href="?group={{groupMode}}&amp;dir=desc"{{#if (eq sortDir "desc")}} aria-current="true"{{/if}}>Descending</a>
       </p>
     </div>
     {{#if cardGroups.length}}

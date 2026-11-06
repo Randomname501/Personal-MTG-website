@@ -11,6 +11,7 @@
         {{/each}}
       </select>
     </div>
+    {{> deckSortField}}
     <button type="submit" class="submit-button">Apply</button>
     {{#if hasFilter}}<a href="/decks" class="button cancel-button">Clear</a>{{/if}}
   </form>

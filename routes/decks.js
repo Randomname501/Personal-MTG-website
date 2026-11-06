@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 import { Deck, DECK_FORMATS, DECK_VISIBILITY, MTG_COLORS, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getDeckStats } from '../lib/stats.js';
-import { getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
+import { GROUP_MODES, getCardInsights, groupCards, withoutCommander } from '../lib/cardInsights.js';
+import { DECK_COLLATION, DECK_SORTS, deckSort } from '../lib/deckSort.js';
 import { searchCards, getCardById, getCardByName, getCardsByNames } from '../lib/scryfall.js';
 import { formatDecklist, parseDecklist } from '../lib/decklist.js';
 import { pairRefusal } from '../lib/commanderPair.js';
@@ -40,8 +41,10 @@ router.get('/decks', requireAuth, async (req, res, next) => {
     const filter = {};
     if (DECK_FORMATS.includes(req.query.format)) filter.format = req.query.format;
 
+    const order = deckSort(req.query.sort);
     const decks = await Deck.find({ $and: [filter, visibleDeckFilter(req.currentUser)] })
-      .sort({ createdAt: -1 })
+      .sort(order.sort)
+      .collation(DECK_COLLATION)
       .populate('owner', 'username')
       .lean();
 
@@ -64,6 +67,8 @@ router.get('/decks', requireAuth, async (req, res, next) => {
       formats: DECK_FORMATS,
       filter: { format: filter.format ?? '' },
       hasFilter: Boolean(filter.format),
+      deckSorts: DECK_SORTS,
+      sort: order.value,
     });
   } catch (err) {
     next(err);
@@ -158,17 +163,19 @@ router.get('/decks/:id', requireAuth, async (req, res, next) => {
     const { commanders, cards } = commandersAndCards(deck);
     const cardCount = cards.reduce((sum, c) => sum + c.quantity, 0) + commanders.length;
     const insights = getCardInsights(cards);
-    const groupMode = ['type', 'cmc'].includes(req.query.group) ? req.query.group : 'type';
+    const groupMode = GROUP_MODES.includes(req.query.group) ? req.query.group : 'type';
+    const sortDir = req.query.dir === 'desc' ? 'desc' : 'asc';
     // A commander also stored as a card keeps that card's id and note on its row.
     const asCard = ({ name }) => (deck.cards || []).find((c) => c.name.toLowerCase() === name.toLowerCase());
     const cardGroups = groupCards(cards, {
       mode: groupMode,
+      descending: sortDir === 'desc',
       commanders: commanders.map((c) => ({ ...asCard(c), ...c })),
     });
     const consideringGroups = isOwner ? groupCards(deck.considering) : [];
     const assistantEnabled = isOwner && Boolean(process.env.ANTHROPIC_API_KEY);
     const exportText = decklistText({ commanders, cards });
-    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, consideringGroups, groupMode, assistantEnabled, exportText });
+    res.render('deckDetail', { title: deck.name, deck, visibilities: DECK_VISIBILITY, stats, isOwner, isTracked, cardCount, insights, cardGroups, consideringGroups, groupMode, sortDir, assistantEnabled, exportText });
   } catch (err) {
     next(err);
   }
