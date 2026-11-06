@@ -94,7 +94,7 @@ router.post('/decks', requireAuth, async (req, res, next) => {
       owner: req.currentUser._id,
       visibility,
       colors,
-      commander: (partnerCard ? commanderCard.name : commanderName) || undefined,
+      commander: commanderCard?.name ?? (commanderName || undefined),
       commanderImageUrl: commanderCard?.imageUrl || '',
       partner: partnerCard?.name,
       partnerImageUrl: partnerCard?.imageUrl || '',

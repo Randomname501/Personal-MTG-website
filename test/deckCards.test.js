@@ -348,7 +348,7 @@ test('creating a deck with a commander name stores the fuzzy-matched art', async
   const res = await ivy.request('POST', '/decks', { name: 'IvysAtraxa', format: 'Commander', commander: 'atraxa' });
   assert.equal(res.status, 302);
   const deck = await Deck.findOne({ name: 'IvysAtraxa' });
-  assert.equal(deck.commander, 'atraxa'); // typed name kept at creation
+  assert.equal(deck.commander, "Atraxa, Praetors' Voice");
   assert.equal(deck.commanderImageUrl, 'http://img/atraxa.jpg');
 });
 
@@ -684,7 +684,8 @@ test('a second commander on a non-Commander deck is ignored', async () => {
 
 test('Manage Cards can add a legal second commander, even over a typed first name', async () => {
   const user = await pairUser();
-  const deck = await pairDeck(user, 'ManagePair', { commander: 'kodama' }); // stored as typed
+  const deck = await pairDeck(user, 'ManagePair', { commander: 'kodama' });
+  await Deck.updateOne({ _id: deck._id }, { commander: 'kodama' }); // as older decks stored it
   const search = await user.request('GET', `/decks/${deck._id}/cards?q=counterspell`);
   assert.match(search.text, new RegExp(`action="/decks/${deck._id}/partner"`));
 
@@ -982,6 +983,23 @@ test('the deck page offers the list to copy and a download link', async () => {
   const res = await user.request('GET', `/decks/${deck._id}`);
   assert.match(res.text, /<textarea[^>]*readonly[^>]*>Commander\n1 Kodama of the East Tree\n<\/textarea>/);
   assert.ok(res.text.includes(`href="/decks/${deck._id}/export"`));
+});
+
+test('a commander typed in short is saved and exported under its full name', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ExportShort', { commander: 'atraxa' });
+  assert.equal(deck.commander, "Atraxa, Praetors' Voice");
+  const { text } = await user.request('GET', `/decks/${deck._id}/export`);
+  assert.equal(text, "Commander\n1 Atraxa, Praetors' Voice\n");
+});
+
+test('the export script sits outside the section the deck helper replaces', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ExportScript');
+  const { text } = await user.request('GET', `/decks/${deck._id}`);
+  const section = text.slice(text.indexOf('class="deck-cards-view"'), text.indexOf('deck-export.js'));
+  assert.ok(text.includes('src="/js/deck-export.js"'));
+  assert.ok(section.includes('</section>'));
 });
 
 test('the deck page offers no export for an empty deck', async () => {
