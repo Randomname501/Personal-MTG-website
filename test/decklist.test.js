@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDecklist } from '../lib/decklist.js';
+import { formatDecklist, parseDecklist } from '../lib/decklist.js';
 
 test('parses Moxfield-style lines, stripping set codes and collector numbers', () => {
   const { cards, commanders } = parseDecklist('1 Sol Ring (CMR) 263\n4 Lightning Bolt\n2x Island (UNF) 236 *F*');
@@ -56,6 +56,25 @@ test('skips sideboard and maybeboard sections, comments and blank lines', () => 
 test('merges repeated names case-insensitively and ignores unparseable lines', () => {
   const { cards } = parseDecklist('1 Opt\n2 opt\nnot a card line\n0 Duress');
   assert.deepEqual(cards, [{ name: 'Opt', quantity: 3 }]);
+});
+
+test('formats commanders in their own section above the deck', () => {
+  const text = formatDecklist({ commanders: ['Kodama of the East Tree', 'Kediss, Emberclaw Familiar'], cards: [{ name: 'Sol Ring', quantity: 1 }, { name: 'Forest', quantity: 30 }] });
+  assert.equal(text, 'Commander\n1 Kodama of the East Tree\n1 Kediss, Emberclaw Familiar\n\nDeck\n1 Sol Ring\n30 Forest\n');
+});
+
+test('formats a deck with no commander as plain card lines', () => {
+  assert.equal(formatDecklist({ commanders: [], cards: [{ name: 'Lightning Bolt', quantity: 4 }] }), '4 Lightning Bolt\n');
+});
+
+test('formats a commander with no other cards, and an empty deck', () => {
+  assert.equal(formatDecklist({ commanders: ['Krenko, Mob Boss'], cards: [] }), 'Commander\n1 Krenko, Mob Boss\n');
+  assert.equal(formatDecklist({ commanders: [], cards: [] }), '');
+});
+
+test('a formatted list parses back to the same deck', () => {
+  const deck = { commanders: ['Krenko, Mob Boss'], cards: [{ name: 'Fire // Ice', quantity: 2 }, { name: 'Mountain', quantity: 20 }] };
+  assert.deepEqual(parseDecklist(formatDecklist(deck)), deck);
 });
 
 test('handles empty and non-string input', () => {

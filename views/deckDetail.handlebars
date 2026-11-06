@@ -72,7 +72,16 @@
     {{#unless deck.cards.length}}
       <p>No cards in this deck yet.{{#if isOwner}} <a href="/decks/{{deck._id}}/cards">Add some</a>.{{/if}}</p>
     {{/unless}}
+    {{#if exportText}}
+      <details class="deck-import">
+        <summary>Export decklist</summary>
+        <textarea id="deck-export-text" rows="10" class="form-input" aria-label="Decklist as text" readonly>{{exportText}}</textarea>
+        <button type="button" id="deck-export-copy" class="button">Copy</button>
+        <a href="/decks/{{deck._id}}/export" class="button">Download</a>
+      </details>
+    {{/if}}
   </section>
+  <script src="/js/deck-export.js" defer></script>
 
   <section class="deck-stats">
     <h2>Record</h2>

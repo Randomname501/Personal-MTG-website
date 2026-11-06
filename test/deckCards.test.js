@@ -33,7 +33,7 @@ const makeClient = () => {
     const res = await fetch(baseUrl + path, { method, headers, body, redirect: 'manual' });
     store(res);
     const text = await res.text();
-    return { status: res.status, location: res.headers.get('location'), text };
+    return { status: res.status, location: res.headers.get('location'), headers: res.headers, text };
   };
   return { request };
 };
@@ -76,6 +76,15 @@ const KEDISS = {
   type_line: 'Legendary Creature — Elemental Lizard',
   oracle_text: 'Partner (You can have two commanders if both have partner.)',
   image_uris: { normal: 'http://img/kediss.jpg' },
+};
+const FIRE_ICE = {
+  id: 'fire-ice-1',
+  name: 'Fire // Ice',
+  mana_cost: '{1}{R} // {1}{U}',
+  cmc: 2,
+  colors: ['U', 'R'],
+  type_line: 'Instant // Instant',
+  image_uris: { normal: 'http://img/fire-ice.jpg' },
 };
 const AKIRI = {
   id: 'akiri-1',
@@ -123,7 +132,7 @@ before(async () => {
       req.on('data', (chunk) => { body += chunk; });
       req.on('end', async () => {
         await runDuringLookup();
-        const known = { counterspell: CARD, "atraxa, praetors' voice": ATRAXA, 'kodama of the east tree': KODAMA, 'kediss, emberclaw familiar': KEDISS, 'akiri, line-slinger': AKIRI };
+        const known = { counterspell: CARD, "atraxa, praetors' voice": ATRAXA, 'kodama of the east tree': KODAMA, 'kediss, emberclaw familiar': KEDISS, 'akiri, line-slinger': AKIRI, fire: FIRE_ICE }; // like Scryfall, no entry for 'fire // ice'
         const ids = JSON.parse(body).identifiers;
         res.end(JSON.stringify({
           data: ids.map((i) => known[i.name.toLowerCase()]).filter(Boolean),
@@ -339,7 +348,7 @@ test('creating a deck with a commander name stores the fuzzy-matched art', async
   const res = await ivy.request('POST', '/decks', { name: 'IvysAtraxa', format: 'Commander', commander: 'atraxa' });
   assert.equal(res.status, 302);
   const deck = await Deck.findOne({ name: 'IvysAtraxa' });
-  assert.equal(deck.commander, 'atraxa'); // typed name kept at creation
+  assert.equal(deck.commander, "Atraxa, Praetors' Voice");
   assert.equal(deck.commanderImageUrl, 'http://img/atraxa.jpg');
 });
 
@@ -675,7 +684,8 @@ test('a second commander on a non-Commander deck is ignored', async () => {
 
 test('Manage Cards can add a legal second commander, even over a typed first name', async () => {
   const user = await pairUser();
-  const deck = await pairDeck(user, 'ManagePair', { commander: 'kodama' }); // stored as typed
+  const deck = await pairDeck(user, 'ManagePair', { commander: 'kodama' });
+  await Deck.updateOne({ _id: deck._id }, { commander: 'kodama' }); // as older decks stored it
   const search = await user.request('GET', `/decks/${deck._id}/cards?q=counterspell`);
   assert.match(search.text, new RegExp(`action="/decks/${deck._id}/partner"`));
 
@@ -900,6 +910,103 @@ test('a second commander also held as a card is counted and listed once', async 
   const res = await user.request('GET', `/decks/${deck._id}`);
   assert.match(res.text, /Cards \(2\)/);
   assert.equal(res.text.match(/cardlist__name"[^>]*>Kediss/g).length, 1);
+});
+
+// --- Decklist export ---
+test('exporting downloads a text file with both commanders and the cards', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'Export Pair', { commander: 'kodama', partner: 'kediss' });
+  await user.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+  const res = await user.request('GET', `/decks/${deck._id}/export`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /^text\/plain/);
+  assert.match(res.headers.get('content-disposition'), /^attachment; filename="Export Pair\.txt"/);
+  assert.equal(res.text, KODAMA_KEDISS + '\n');
+});
+
+test('an export lists a commander also held as a card once', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ExportDouble', { commander: 'kodama', partner: 'kediss' });
+  await user.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'kediss-1' });
+  const res = await user.request('GET', `/decks/${deck._id}/export`);
+  assert.equal(res.text.match(/Kediss/g).length, 1);
+});
+
+test('an exported list imports back into an empty deck unchanged', async () => {
+  const user = await pairUser();
+  const source = await pairDeck(user, 'ExportSource', { commander: 'kodama', partner: 'kediss' });
+  await user.request('POST', `/decks/${source._id}/cards`, { scryfall_id: 'abc-123' });
+  const { text: decklist } = await user.request('GET', `/decks/${source._id}/export`);
+  const copy = await pairDeck(user, 'ExportCopy');
+  await user.request('POST', `/decks/${copy._id}/import`, { decklist });
+  const updated = await Deck.findById(copy._id);
+  assert.equal(updated.commander, 'Kodama of the East Tree');
+  assert.equal(updated.partner, 'Kediss, Emberclaw Familiar');
+  assert.deepEqual(updated.cards.map((c) => [c.name, c.quantity]), [['Counterspell', 1]]);
+});
+
+test('a two-faced card survives export and import under its full name', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ExportSplit');
+  await user.request('POST', `/decks/${deck._id}/import`, { decklist: '2 Fire // Ice' });
+  const { text } = await user.request('GET', `/decks/${deck._id}/export`);
+  assert.equal(text, '2 Fire // Ice\n');
+});
+
+test('a commander on a non-Commander deck is not exported, matching the deck page', async () => {
+  const user = await pairUser();
+  await user.request('POST', '/decks', { name: 'ExportModern', format: 'Modern', commander: 'kodama' });
+  const deck = await Deck.findOne({ name: 'ExportModern' });
+  await user.request('POST', `/decks/${deck._id}/cards`, { scryfall_id: 'abc-123' });
+  const res = await user.request('GET', `/decks/${deck._id}/export`);
+  assert.equal(res.text, '1 Counterspell\n');
+});
+
+test('another player can export a public deck but not a private one', async () => {
+  const owner = await pairUser();
+  const other = await pairUser();
+  const deck = await pairDeck(owner, 'ExportVisible', { commander: 'kodama' });
+  assert.equal((await other.request('GET', `/decks/${deck._id}/export`)).status, 200);
+  await Deck.updateOne({ _id: deck._id }, { visibility: 'private' });
+  assert.equal((await other.request('GET', `/decks/${deck._id}/export`)).status, 404);
+});
+
+test('exporting a deck that does not exist is a 404', async () => {
+  const user = await pairUser();
+  assert.equal((await user.request('GET', '/decks/not-an-id/export')).status, 404);
+  assert.equal((await user.request('GET', `/decks/${new mongoose.Types.ObjectId()}/export`)).status, 404);
+});
+
+test('the deck page offers the list to copy and a download link', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ExportPage', { commander: 'Kodama of the East Tree' });
+  const res = await user.request('GET', `/decks/${deck._id}`);
+  assert.match(res.text, /<textarea[^>]*readonly[^>]*>Commander\n1 Kodama of the East Tree\n<\/textarea>/);
+  assert.ok(res.text.includes(`href="/decks/${deck._id}/export"`));
+});
+
+test('a commander typed in short is saved and exported under its full name', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ExportShort', { commander: 'atraxa' });
+  assert.equal(deck.commander, "Atraxa, Praetors' Voice");
+  const { text } = await user.request('GET', `/decks/${deck._id}/export`);
+  assert.equal(text, "Commander\n1 Atraxa, Praetors' Voice\n");
+});
+
+test('the export script sits outside the section the deck helper replaces', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ExportScript');
+  const { text } = await user.request('GET', `/decks/${deck._id}`);
+  const section = text.slice(text.indexOf('class="deck-cards-view"'), text.indexOf('deck-export.js'));
+  assert.ok(text.includes('src="/js/deck-export.js"'));
+  assert.ok(section.includes('</section>'));
+});
+
+test('the deck page offers no export for an empty deck', async () => {
+  const user = await pairUser();
+  const deck = await pairDeck(user, 'ExportEmpty');
+  const res = await user.request('GET', `/decks/${deck._id}`);
+  assert.ok(!res.text.includes('/export'));
 });
 
 export { makeClient, aliceDeck };

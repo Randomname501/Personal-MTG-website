@@ -1325,6 +1325,7 @@ main:not(.landing) h2 {
 }
 
 .deck-import { margin-bottom: 1.6rem; }
+.deck-cards-view .deck-import { margin-top: 1.6rem; }
 .deck-import summary { cursor: pointer; font-family: 'Cinzel', serif; font-weight: 700; }
 .deck-import textarea { width: 100%; font-family: monospace; margin: 0.4rem 0 0.8rem; }
 .import-result { border-left: 4px solid var(--mana-u); padding: 0.4rem 0.8rem; margin: 0.6rem 0; }
