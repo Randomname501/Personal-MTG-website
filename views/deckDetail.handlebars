@@ -17,6 +17,7 @@
       <div class="deck-hero__actions">
         {{#if isOwner}}
           <a href="/decks/{{deck._id}}/cards" class="button">Manage Cards</a>
+          <a href="/decks/{{deck._id}}/tags" class="button">Tags</a>
           <form action="/decks/{{deck._id}}/visibility" method="POST" style="display:inline">
             <select name="visibility" aria-label="Deck visibility">
               <option value="public"{{#if (eq deck.visibility "public")}} selected{{/if}}>Public</option>

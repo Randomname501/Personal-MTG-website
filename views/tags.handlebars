@@ -1,0 +1,35 @@
+<main class="profile-page">
+  <header class="profile-head">
+    <h1>Tags</h1>
+    <p>Your own labels for decks and cards. Only you can see them.</p>
+  </header>
+  {{#if error}}<div class="error-message" role="alert">{{error}}</div>{{/if}}
+
+  <form action="/tags" method="POST" class="filter-bar">
+    <div class="form-group">
+      <label for="tag-name">New tag</label>
+      <input type="text" name="name" id="tag-name" maxlength="{{nameMax}}" required />
+    </div>
+    <button type="submit" class="submit-button">Create</button>
+  </form>
+
+  {{#if tags.length}}
+    <ul class="profile-list">
+      {{#each tags}}
+        <li>
+          <a href="/tags/{{this._id}}">{{this.name}}</a>
+          ({{this.decks.length}} {{#if (eq this.decks.length 1)}}deck{{else}}decks{{/if}}, {{this.cards.length}} {{#if (eq this.cards.length 1)}}card{{else}}cards{{/if}})
+          <form action="/tags/{{this._id}}" method="POST" style="display:inline">
+            <input type="text" name="name" value="{{this.name}}" maxlength="{{../nameMax}}" aria-label="New name for {{this.name}}" required />
+            <button type="submit" class="button">Rename</button>
+          </form>
+          <form action="/tags/{{this._id}}/delete" method="POST" style="display:inline">
+            <button type="submit" class="button cancel-button">Delete</button>
+          </form>
+        </li>
+      {{/each}}
+    </ul>
+  {{else}}
+    <p>You haven't made any tags yet.</p>
+  {{/if}}
+</main>
